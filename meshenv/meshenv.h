@@ -21,12 +21,14 @@ class MeshEnv
 public:
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
 
-    MeshEnv(string configFilePath);
+    MeshEnv(string meshFilePath, int maxEdgeCount = 750, // i.e. num of actions
+                                int maxVertexCount = 250,
+                                int maxFaceCount = 500);
     void initMeshEnv();
     void initFromVectors(const std::vector<Eigen::Vector3f> &vertices,
                          const std::vector<Eigen::Vector3i> &faces);
 
-    void loadFromFile(const std::string &filePath);
+    void loadFromFile();
     void saveToFile(const std::string &filePath);
 
     HalfEdgeMesh* halfEdgeMesh;
@@ -40,8 +42,9 @@ private:
     vector<Vector3f> _vertices;
     vector<Vector3i> _faces;
 
-    string iniFilePath = "";
+    string meshFilePath = "";
 
+    // must be set when env is initialized
     // any thing beyond these will break the RL agent
     int maxEdgeCount = 750; // i.e. num of actions
     int maxVertexCount = 250;

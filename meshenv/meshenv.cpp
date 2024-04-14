@@ -13,8 +13,8 @@
 using namespace Eigen;
 using namespace std;
 
-MeshEnv::MeshEnv(string configFilePath) {
-    iniFilePath = configFilePath;
+MeshEnv::MeshEnv(string meshFilePath, int maxEdgeCount, int maxVertexCount, int maxFaceCount)
+    : meshFilePath(meshFilePath), maxEdgeCount(maxEdgeCount),  maxVertexCount(maxVertexCount), maxFaceCount(maxFaceCount) {
     halfEdgeMesh = new HalfEdgeMesh();
 }
 
@@ -24,7 +24,7 @@ void MeshEnv::reset() {
 }
 
 void MeshEnv::initMeshEnv() {
-    loadFromFile(iniFilePath); // sets up halfedge datastruct for the specified mesh file path
+    loadFromFile(); // sets up halfedge datastruct for the specified mesh file path during meshenv initialization
     halfEdgeMesh->initQEMCosts(); // calcs up QEM cost of each edge in the mesh
 
     initialEdgeCount = halfEdgeMesh->edgeMap.size();
@@ -119,7 +119,7 @@ void MeshEnv::initFromVectors(const vector<Vector3f> &vertices, const vector<Vec
     halfEdgeMesh = new HalfEdgeMesh();
 }
 
-void MeshEnv::loadFromFile(const string &iniFilePath) {
+void MeshEnv::loadFromFile() {
     tinyobj::attrib_t attrib;
     vector<tinyobj::shape_t> shapes;
     vector<tinyobj::material_t> materials;
@@ -130,9 +130,9 @@ void MeshEnv::loadFromFile(const string &iniFilePath) {
 //                                info.absoluteFilePath().toStdString().c_str(), (info.absolutePath().toStdString() + "/").c_str(), true);
 //    cout << info.absoluteFilePath().toStdString().c_str() << endl;
 //    cout << (info.absolutePath().toStdString() + "/").c_str() << endl;
-    string p = iniFilePath;
+    // "/Users/mohammedk/Documents/Brown/CS2951F/Final Project/MeshSimplificationRL/meshenv/meshes/bunny.obj"
     bool ret = tinyobj::LoadObj(&attrib, &shapes, &materials, &err,
-                                "/Users/mohammedk/Documents/Brown/CS2951F/Final Project/MeshSimplificationRL/meshenv/meshes/icosahedron.obj",
+                                meshFilePath.c_str(),
                                 "/Users/mohammedk/Documents/Brown/CS2951F/Final Project/MeshSimplificationRL/meshenv/meshes/", true);
 
     if (!err.empty()) {

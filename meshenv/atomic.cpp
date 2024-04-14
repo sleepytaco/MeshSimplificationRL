@@ -1,5 +1,3 @@
-// Contains atomic operations for the HalfEdgeMesh DS: edge split, edge flip, edge collapse
-
 #include "halfedgemesh.h"
 
 bool HalfEdgeMesh::isManifoldAfterEdgeCollapse(Edge* edge, Vector3f collapsePoint) {
