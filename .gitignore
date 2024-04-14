@@ -154,6 +154,14 @@ dmypy.json
 # Cython debug symbols
 cython_debug/
 build-meshenv-Qt_6_2_4_for_macOS-Debug/
+build-meshenv-Qt_6_2_4_for_macOS-Release/
+meshenv/.cmake
+meshenv/.qtc_clangd
+meshenv/CMakeFiles
+meshenv/CMakeLists.txt.user
+meshenv/meshes
+meshenv/template_inis
+
 
 # PyCharm
 #  JetBrains specific template is maintained in a separate JetBrains.gitignore that can
