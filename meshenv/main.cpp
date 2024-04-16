@@ -25,9 +25,11 @@ int main(int argc, char *argv[]) {
     cout << "Started server..." << endl;
 
     string baseDir = "/Users/mohammedk/Documents/Brown/CS2951F/Final Project/MeshSimplificationRL/meshenv/meshes/";
-    string meshName = "cow_500f.obj";
+    string meshName = "bunny_200f.obj";
     MeshEnv env(baseDir + meshName);
     env.initMeshEnv();
+    env.setIsTraining(false);
+    env.setFinalFaceCount(100);
 
     io_service service;
     tcp::acceptor acceptor(service, tcp::endpoint(tcp::v4(), 12345));
@@ -73,13 +75,32 @@ int main(int argc, char *argv[]) {
             j["isTerminal"] = actionResponse.second;
             j["state"] = env.getState();
             j["message"] = "Took action of removing edge with ID";
+        } else if (request.find("GET /update-env") != std::string::npos) { // endpoint /step?action={edgeIdToRemove}
+            // prse action from the request
+            string action_str;
+            size_t pos = request.find("action=");
+            if (pos != string::npos) {
+                pos += 7; // len of "action="
+                size_t end_pos = request.find('&', pos);
+                if (end_pos != string::npos) {
+                    action_str = request.substr(pos, end_pos - pos);
+                } else {
+                    action_str = request.substr(pos);
+                }
+            }
+
+            if (action_str == "train") env.setIsTraining(true);
+            else if (action_str == "test") env.setIsTraining(false);
+
+            j["message"] = "Performed action=" + action_str;
         } else if (request.find("GET /bye") != std::string::npos) {
             j["message"]  = "Server is shutting down... saving the current state of the mesh at: " + baseDir + "RLsimplified_" + meshName;
-            env.saveToFile(baseDir + "RLsimplified_" + meshName);
+            env.saveToFile(baseDir + meshName + "_to_" + to_string(env.getFaceCount()) + "f_RL.obj");
             running = false;
         } else {
             j["message"] = "Invalid request.";
         }
+        j["currFaceCount"] = env.getFaceCount();
         response = j.dump();
 
         response = "HTTP/1.1 200 OK\r\nContent-Length: " + std::to_string(response.size()) + "\r\n\r\n" + response;
