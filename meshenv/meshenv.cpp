@@ -18,10 +18,7 @@ MeshEnv::MeshEnv(string meshFilePath, int maxFaceCount,  int maxVertexCount, int
     halfEdgeMesh = new HalfEdgeMesh();
 }
 
-
-void MeshEnv::reset() {
-    episodeCount++;
-    cout << "-----MESH ENV RESET: EPISODE #" << episodeCount << "-------" << endl;
+void MeshEnv::printEpisodeStats() {
     if (isTraining) cout << (reachedRequiredFaces ? "Reached the required number of faces!" : "Did NOT reach the required number of faces (episode TRUNCATED)") << endl;
     cout << "maximum reward recived: " << maxRewardGiven << endl;
     cout << "total episode rewards sum: " << episodeRewards << endl;
@@ -33,6 +30,14 @@ void MeshEnv::reset() {
     cout << "face count before reset: " << halfEdgeMesh->faceMap.size() << endl;
     cout << "vertices count before reset: " << halfEdgeMesh->vertexMap.size() << endl;
     cout << "edge count before reset: " << halfEdgeMesh->edgeMap.size() << endl;
+}
+
+void MeshEnv::reset() {
+    if (isTraining) {
+        episodeCount++;
+        cout << "-----MESH ENV RESET: EPISODE #" << episodeCount << "-------" << endl;
+        printEpisodeStats();
+    }
     cout << endl;
     initMeshEnv(); // reset mesh by loading it again
     maxRewardGiven = 0;
@@ -49,6 +54,8 @@ void MeshEnv::reset() {
 }
 
 void MeshEnv::initMeshEnv() {
+
+    assert(meshFilePath != "" && "Mesh filepath not set!");
     loadFromFile(); // sets up halfedge datastruct for the specified mesh file path during meshenv initialization
     halfEdgeMesh->initQEMCosts(); // calcs up QEM cost of each edge in the mesh
 
@@ -62,7 +69,7 @@ void MeshEnv::initMeshEnv() {
         int meshStateSize = maxVertexCount + maxFaceCount; // halfEdgeMesh->vertexMap.size() + halfEdgeMesh->faceMap.size();
         meshState.reserve(meshStateSize);
         for (int i=0; i<meshStateSize; ++i) {
-            meshState.push_back({-1, -1, -1}); // add empty rows
+            meshState.push_back({emptyVal, emptyVal, emptyVal}); // add empty rows
         }
     }
 }
@@ -72,7 +79,7 @@ vector<vector<float>>& MeshEnv::getState() {
     // cout << meshState.size() << endl; cout << initialVertexCount<< endl; cout << initialFaceCount<< endl;
     for (int j=0; j<maxFaceCount; ++j) {
         if (!halfEdgeMesh->faceMap.contains(j)) {
-            meshState[maxVertexCount + j] = {-1, -1, -1};
+            meshState[maxVertexCount + j] = {emptyVal, emptyVal, emptyVal};
             continue;
         }
         Face* f = halfEdgeMesh->faceMap[j];
@@ -81,7 +88,7 @@ vector<vector<float>>& MeshEnv::getState() {
     }
     for (int j=0; j<maxVertexCount; ++j) {
         if (!halfEdgeMesh->vertexMap.contains(j)) {
-            meshState[j] = {-1, -1, -1};
+            meshState[j] = {emptyVal, emptyVal, emptyVal};
             continue;
         }
         Vertex* v = halfEdgeMesh->vertexMap[j];
@@ -116,7 +123,7 @@ pair<float, bool> MeshEnv::step(int action) {
         pair<int, float> res = halfEdgeMesh->removeEdge(edgeId);
         int errorCode = res.first;
         if (errorCode == 2) {
-            reward = 0;
+            reward = 0; //-200;
             numDeletedEdgeCollapses ++;
             if (printSteps)  cout << "--- edge id " << action << " does not exist (was deleted)" << endl;
         } else if (errorCode == 3) {
@@ -134,12 +141,13 @@ pair<float, bool> MeshEnv::step(int action) {
     // terminal conditions
     // - the smallest possible manifold mesh is a tetrahedron, which has 6 edges and 4 faces
     // - the number of faces in the current state is less than equal to what the user wants in the simplified mesh result
+    // - (only during training) truncate if the total number of actions/steps (i.e. edge collapses taken is greater than the maxSteps
     int totalCollapses = numCollapses + numNonManifoldCollapses + numDeletedEdgeCollapses + numDNEEdgeCollapses;
     if (isTraining && totalCollapses > maxSteps) {
         isTerminal = true;
     }
     if (getEdgeCount() <= 6 || halfEdgeMesh->faceMap.size() <= finalFaceCount) {
-        reward += 100;
+        // reward += 100;
         isTerminal = true;
         reachedRequiredFaces = true;
     }

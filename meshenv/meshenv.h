@@ -21,7 +21,7 @@ class MeshEnv
 public:
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
 
-    MeshEnv(string meshFilePath, int maxFaceCount = 200,
+    MeshEnv(string meshFilePath = "", int maxFaceCount = 200,
                                 int maxVertexCount = 102,
                                 int maxEdgeCount = 300 // i.e. num of actions
                                 );
@@ -34,20 +34,29 @@ public:
 
     HalfEdgeMesh* halfEdgeMesh;
 
+    bool isTraining = true;
+    int finalFaceCount = 50; // final simplified mesh must contain atmost these many faces (used as terminal condition)
+
+    string getMeshFilePath() {return meshFilePath;}
     int getEdgeCount() { return halfEdgeMesh->edgeMap.size(); };
     int getFaceCount() { return halfEdgeMesh->faceMap.size(); };
+
+    void setMeshFilePath(string s) { cout << "Set mesh file path to " + s << endl; meshFilePath = s;};
     void setIsTraining(bool b) { isTraining = b; };
     void setFinalFaceCount(int fc) { finalFaceCount = fc;};
+
+    void printEpisodeStats();
 
     void reset();
     vector<vector<float>>& getState();
     pair<float, bool> step(int action);
+
 private:
     vector<Vector3f> _vertices;
     vector<Vector3i> _faces;
 
-    bool isTraining = true;
-    int maxSteps = 2000;
+    float emptyVal = 0; // the value to fill empty rows with
+    int maxSteps = 3000;
     bool printSteps = false; // prints the edge collapse operations out
     bool reachedRequiredFaces = false;
 
@@ -69,7 +78,6 @@ private:
     int maxFaceCount;
     int maxVertexCount;
     int maxEdgeCount; // i.e. num of actions
-    int finalFaceCount = 75; // final simplified mesh must contain atmost these many faces (used as terminal condition)
 
     vector<vector<float>> meshState; // first half is vertices, second half is faces
 

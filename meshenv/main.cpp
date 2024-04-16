@@ -24,12 +24,13 @@ int main(int argc, char *argv[]) {
 
     cout << "Started server..." << endl;
 
-    string baseDir = "/Users/mohammedk/Documents/Brown/CS2951F/Final Project/MeshSimplificationRL/meshenv/meshes/";
-    string meshName = "bunny_200f.obj";
-    MeshEnv env(baseDir + meshName);
-    env.initMeshEnv();
-    env.setIsTraining(false);
-    env.setFinalFaceCount(100);
+//    string baseDir = "/Users/mohammedk/Documents/Brown/CS2951F/MeshSimplificationRL/MeshCNN/datasets/shrec_16/";
+//    string meshName = "armadillo/train/T54.obj";
+//    MeshEnv env(baseDir + meshName);
+//    env.initMeshEnv();
+    // env.setFinalFaceCount(75);
+
+    MeshEnv env;
 
     io_service service;
     tcp::acceptor acceptor(service, tcp::endpoint(tcp::v4(), 12345));
@@ -75,7 +76,7 @@ int main(int argc, char *argv[]) {
             j["isTerminal"] = actionResponse.second;
             j["state"] = env.getState();
             j["message"] = "Took action of removing edge with ID";
-        } else if (request.find("GET /update-env") != std::string::npos) { // endpoint /step?action={edgeIdToRemove}
+        } else if (request.find("GET /update-env") != std::string::npos) { // endpoint /step?action={edgeIdToRemove}&meshFilePath={pathtomeshfile}&
             // prse action from the request
             string action_str;
             size_t pos = request.find("action=");
@@ -89,14 +90,52 @@ int main(int argc, char *argv[]) {
                 }
             }
 
-            if (action_str == "train") env.setIsTraining(true);
-            else if (action_str == "test") env.setIsTraining(false);
+            if (action_str != "") {
+                j["message"] = "Performed action=" + action_str;
+                if (action_str == "train") env.setIsTraining(true);
+                else if (action_str == "test") env.setIsTraining(false);
+            }
 
-            j["message"] = "Performed action=" + action_str;
+            string meshFilePath_str;
+            pos = request.find("meshFilePath=");
+            if (pos != string::npos) {
+                pos += 13; // len of "meshFilePath="
+                size_t end_pos = request.find('&', pos);
+                if (end_pos != string::npos) {
+                    meshFilePath_str = request.substr(pos, end_pos - pos);
+                } else {
+                    meshFilePath_str = request.substr(pos);
+                }
+            }
+            if (meshFilePath_str != "") {
+                j["message"] = "\nUpdated mesh env with new mesh file.";
+                env.setMeshFilePath(meshFilePath_str);
+                env.reset();
+            }
+
+            string faceCount_str;
+            pos = request.find("faceCount=");
+            if (pos != string::npos) {
+                pos += 10; // len of "faceCount="
+                size_t end_pos = request.find('&', pos);
+                if (end_pos != string::npos) {
+                    faceCount_str = request.substr(pos, end_pos - pos);
+                } else {
+                    faceCount_str = request.substr(pos);
+                }
+            }
+
+            if (faceCount_str != "") {
+                int faceCount = std::stoi(faceCount_str);
+                env.setFinalFaceCount(faceCount);
+            }
         } else if (request.find("GET /bye") != std::string::npos) {
-            j["message"]  = "Server is shutting down... saving the current state of the mesh at: " + baseDir + "RLsimplified_" + meshName;
-            env.saveToFile(baseDir + meshName + "_to_" + to_string(env.getFaceCount()) + "f_RL.obj");
-            running = false;
+            if (!env.isTraining) {env.printEpisodeStats(); cout << endl;};
+
+            string savePath = env.getMeshFilePath() + "_to_" + to_string(env.getFaceCount()) + "f_RL.obj";
+            j["message"]  = "Server is shutting down... saving the current state of the mesh at " + savePath;
+            env.saveToFile(savePath);
+            // running = false; // shut down server after training / testing done
         } else {
             j["message"] = "Invalid request.";
         }
