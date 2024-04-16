@@ -1,7 +1,8 @@
 import trimesh
 
-mesh_name = "bunny"
-face_count = 100
+# Helper file to generate "ideal" simplified meshes using an off-the-shelf mesh library
+mesh_name = "sphere"
+face_count = 200
 
 # Load the input mesh
 mesh = trimesh.load(f"meshes/{mesh_name}.obj")
@@ -16,10 +17,10 @@ if len(mesh.faces) > face_count:
     print("\nafter simplification:")
     # Save the simplified mesh
     simplified_mesh.export(f"meshes/{mesh_name}_{face_count}f.obj")
-    mesh = trimesh.load(f"meshes/{mesh_name}_{face_count}f.obj")
-    print("num vertices", len(mesh.vertices))
-    print("num faces", len(mesh.faces))
-    print("num edges", len(mesh.edges) // 2)
+    # mesh = trimesh.load(f"meshes/{mesh_name}_{face_count}f.obj")
+    print("num vertices", len(simplified_mesh.vertices))
+    print("num faces", len(simplified_mesh.faces))
+    print("num edges", len(simplified_mesh.edges) // 2)
 else:
     print("input mesh already has faces <", face_count)
 

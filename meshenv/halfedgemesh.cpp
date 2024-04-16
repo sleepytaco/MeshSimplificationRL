@@ -123,11 +123,11 @@ void HalfEdgeMesh::buildHalfEdgeMesh(const vector<Vector3f> &vertices, const vec
     initialVertexCount = vertexMap.size();
 
     // im only working with manifold meshes for this proj
-//    bool temp = runValidator;
-//    runValidator = true; // force run validation when halfedge mesh created for the first time
-//    validateMesh();
-//    runValidator = temp; // reset to old value
-//    cout << "Successfully validated initially built half-edge mesh." << endl;
+    // bool temp = runValidator;
+    // runValidator = true; // force run validation when halfedge mesh created for the first time
+    validateMesh();
+    // runValidator = temp; // reset to old value
+    if (runValidator) cout << "Successfully validated initially built half-edge mesh." << endl;
 }
 
 void HalfEdgeMesh::cleanUpHalfEdgeMesh() {
@@ -185,7 +185,7 @@ void HalfEdgeMesh::createObjFileVerticesFaces(vector<Vector3f> &vertices, vector
 bool HalfEdgeMesh::validateMesh() {
 
     if (!runValidator) return true;
-
+    cout << "Validating halfedge mesh..." << endl;
     unordered_set<int> allHalfEdgeIDs(halfEdgeMap.size());
     for (auto& hem : halfEdgeMap) {
         int heID = hem.first;

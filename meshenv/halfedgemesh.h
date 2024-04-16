@@ -13,7 +13,7 @@ public:
     HalfEdgeMesh();
     ~HalfEdgeMesh();
 
-    bool runValidator=true;
+    bool runValidator=false;
     bool validateMesh();
 
     void buildHalfEdgeMesh(const vector<Vector3f> &vertices, const vector<Vector3i> &faces);

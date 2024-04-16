@@ -157,9 +157,13 @@ Vertex* HalfEdgeMesh::edgeCollapse(Edge* edge, Vector3f collapsePoint) {
     v2->he = heV2V1;
     v3->he = heV3V0;
 
+    // cout << "removed edge id " << eV1V2->id << endl;
+    // cout << "removed edge id " << eV3V1->id << endl;
+
     deleteHalfEdges({heV0V1, heV1V0, heV1V2, heV2V0, heV0V3, heV3V1});
     deleteFaces({f0, f1});
     deleteEdges({eV0V1, eV1V2, eV3V1});
+
     // deleteVertices({v0, v1});
     deleteVertices({v1});
     // addVertices({vMP});
