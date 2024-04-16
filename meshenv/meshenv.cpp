@@ -13,14 +13,39 @@
 using namespace Eigen;
 using namespace std;
 
-MeshEnv::MeshEnv(string meshFilePath, int maxEdgeCount, int maxVertexCount, int maxFaceCount)
+MeshEnv::MeshEnv(string meshFilePath, int maxFaceCount,  int maxVertexCount, int maxEdgeCount)
     : meshFilePath(meshFilePath), maxEdgeCount(maxEdgeCount),  maxVertexCount(maxVertexCount), maxFaceCount(maxFaceCount) {
     halfEdgeMesh = new HalfEdgeMesh();
 }
 
 
 void MeshEnv::reset() {
-    initMeshEnv();
+    episodeCount++;
+    cout << "-----MESH ENV RESET: EPISODE #" << episodeCount << "-------" << endl;
+    if (isTraining) cout << (reachedRequiredFaces ? "Reached the required number of faces!" : "Did NOT reach the required number of faces (episode TRUNCATED)") << endl;
+    cout << "maximum reward recived: " << maxRewardGiven << endl;
+    cout << "total episode rewards sum: " << episodeRewards << endl;
+    cout << "total episode steps: " << numCollapses + numNonManifoldCollapses + numDeletedEdgeCollapses + numDNEEdgeCollapses << endl;
+    cout << "total valid edge collapses: " << numCollapses << endl;
+    cout << "total non-manifold edge collapses: " << numNonManifoldCollapses << endl;
+    cout << "total deleted edge collapses: " << numDeletedEdgeCollapses << endl;
+    cout << "total does not exist edge collapses: " << numDNEEdgeCollapses << endl;
+    cout << "face count before reset: " << halfEdgeMesh->faceMap.size() << endl;
+    cout << "vertices count before reset: " << halfEdgeMesh->vertexMap.size() << endl;
+    cout << "edge count before reset: " << halfEdgeMesh->edgeMap.size() << endl;
+    cout << endl;
+    initMeshEnv(); // reset mesh by loading it again
+    maxRewardGiven = 0;
+    episodeRewards = 0;
+    numCollapses = 0;
+    numNonManifoldCollapses = 0;
+    numDeletedEdgeCollapses = 0;
+    numDNEEdgeCollapses = 0;
+    reachedRequiredFaces = false;
+//    cout << "faces: " << halfEdgeMesh->faceMap.size() << endl;
+//    cout << "vertices: " << halfEdgeMesh->vertexMap.size() << endl;
+//    cout << "edges: " << halfEdgeMesh->edgeMap.size() << endl;
+    cout << "------------------------" << endl;
 }
 
 void MeshEnv::initMeshEnv() {
@@ -65,7 +90,7 @@ vector<vector<float>>& MeshEnv::getState() {
     }
 
     // cout << "mesh faces: " << halfEdgeMesh->faceMap.size() << endl; cout << "mesh vertices: " << halfEdgeMesh->vertexMap.size() << endl; // cout << "mesh state size: " << i << endl;
-    // printVec(meshState);
+    // cout << "meshState.size() " << meshState.size() << endl;
     return meshState;
 }
 
@@ -85,28 +110,41 @@ pair<float, bool> MeshEnv::step(int action) {
      */
     if (edgeId >= initialEdgeCount) { // error code = 1
         reward = 0;
-        cout << "--- edge id " << action << " never existed" << endl;
+        numDNEEdgeCollapses ++;
+        if (printSteps) cout << "--- edge id " << action << " never existed" << endl;
     } else {
         pair<int, float> res = halfEdgeMesh->removeEdge(edgeId);
         int errorCode = res.first;
         if (errorCode == 2) {
             reward = 0;
-            cout << "--- edge id " << action << " does not exist (was deleted)" << endl;
+            numDeletedEdgeCollapses ++;
+            if (printSteps)  cout << "--- edge id " << action << " does not exist (was deleted)" << endl;
         } else if (errorCode == 3) {
-            reward = 100;
-            cout << "--- edge id " << action << " was not collapsed due to breaking manifoldness" << endl;
+            reward = -100;
+            numNonManifoldCollapses ++;
+            if (printSteps)  cout << "--- edge id " << action << " was not collapsed due to breaking manifoldness" << endl;
         } else {
-            reward = res.second;
-            cout << "removed edge id " << action << endl;
+            maxRewardGiven = max(res.second, maxRewardGiven);
+            reward = -res.second; // since RL tries to maximize the sum of rewards
+            numCollapses ++;
+            if (printSteps)  cout << "removed edge id " << action << endl;
         }
     }
 
     // terminal conditions
     // - the smallest possible manifold mesh is a tetrahedron, which has 6 edges and 4 faces
     // - the number of faces in the current state is less than equal to what the user wants in the simplified mesh result
-    if (getEdgeCount() <= 6 || halfEdgeMesh->faceMap.size() <= numFacesInResult) {
+    int totalCollapses = numCollapses + numNonManifoldCollapses + numDeletedEdgeCollapses + numDNEEdgeCollapses;
+    if (isTraining && totalCollapses > maxSteps) {
         isTerminal = true;
     }
+    if (getEdgeCount() <= 6 || halfEdgeMesh->faceMap.size() <= finalFaceCount) {
+        reward += 100;
+        isTerminal = true;
+        reachedRequiredFaces = true;
+    }
+
+    episodeRewards += reward;
 
     return {reward, isTerminal};
 }

@@ -21,9 +21,10 @@ class MeshEnv
 public:
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
 
-    MeshEnv(string meshFilePath, int maxEdgeCount = 750, // i.e. num of actions
-                                int maxVertexCount = 250,
-                                int maxFaceCount = 500);
+    MeshEnv(string meshFilePath, int maxFaceCount = 200,
+                                int maxVertexCount = 102,
+                                int maxEdgeCount = 300 // i.e. num of actions
+                                );
     void initMeshEnv();
     void initFromVectors(const std::vector<Eigen::Vector3f> &vertices,
                          const std::vector<Eigen::Vector3i> &faces);
@@ -34,6 +35,9 @@ public:
     HalfEdgeMesh* halfEdgeMesh;
 
     int getEdgeCount() { return halfEdgeMesh->edgeMap.size(); };
+    int getFaceCount() { return halfEdgeMesh->faceMap.size(); };
+    void setIsTraining(bool b) { isTraining = b; };
+    void setFinalFaceCount(int fc) { finalFaceCount = fc;};
 
     void reset();
     vector<vector<float>>& getState();
@@ -42,16 +46,30 @@ private:
     vector<Vector3f> _vertices;
     vector<Vector3i> _faces;
 
+    bool isTraining = true;
+    int maxSteps = 2000;
+    bool printSteps = false; // prints the edge collapse operations out
+    bool reachedRequiredFaces = false;
+
     string meshFilePath = "";
+    int initialEdgeCount = 0;
+    int episodeCount = 0;
+    float maxRewardGiven = 0;
+
+    // episode stats
+    float episodeRewards = 0;
+    int numCollapses = 0;
+    int numNonManifoldCollapses = 0;
+    int numDeletedEdgeCollapses = 0;
+    int numDNEEdgeCollapses = 0;
 
     // must be set when env is initialized
     // any thing beyond these will break the RL agent
-    int maxEdgeCount = 750; // i.e. num of actions
-    int maxVertexCount = 250;
-    int maxFaceCount = 500;
-
-    int initialEdgeCount = 0;
-    int numFacesInResult = 100; // final simplified mesh must contain atmost these many faces (used as terminal condition)
+    // visit the constructor to update the defaults for this
+    int maxFaceCount;
+    int maxVertexCount;
+    int maxEdgeCount; // i.e. num of actions
+    int finalFaceCount = 75; // final simplified mesh must contain atmost these many faces (used as terminal condition)
 
     vector<vector<float>> meshState; // first half is vertices, second half is faces
 
