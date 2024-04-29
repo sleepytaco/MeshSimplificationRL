@@ -5,10 +5,10 @@
 # from stable_baselines3 import PPO
 from sb3_contrib import TRPO
 from stable_baselines3.common.monitor import Monitor
-from modelV1.customenv import MeshEnv
+from ModelV1.customenv import MeshEnv
 import time
 from stable_baselines3.common.env_checker import check_env
-from modelV1.settings import *
+from ModelV1.settings import *
 
 final_face_count = 200
 isTraining = False
