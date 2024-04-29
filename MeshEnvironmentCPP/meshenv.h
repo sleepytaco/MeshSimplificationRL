@@ -21,9 +21,9 @@ class MeshEnv
 public:
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
 
-    MeshEnv(string meshFilePath = "", int maxFaceCount = 200,
-                                int maxVertexCount = 102,
-                                int maxEdgeCount = 300 // i.e. num of actions
+    MeshEnv(string meshFilePath = "", int maxFaceCount = 500, //200,
+                                int maxVertexCount = 252, //102,
+                                int maxEdgeCount = 750 // 300 // i.e. num of actions
                                 );
     void initMeshEnv();
     void initFromVectors(const std::vector<Eigen::Vector3f> &vertices,
@@ -41,8 +41,12 @@ public:
     int getEdgeCount() { return halfEdgeMesh->edgeMap.size(); };
     int getFaceCount() { return halfEdgeMesh->faceMap.size(); };
 
-    void setMeshFilePath(string s) { cout << "Set mesh file path to " + s << endl; meshFilePath = s;};
-    void setIsTraining(bool b) { isTraining = b; };
+    void setMeshFilePath(string s) { cout << "\n***** Set MESH FILE PATH to " + s + " *****\n"<< endl; meshFilePath = s;};
+    void setIsTraining(bool b) {
+        if (b) cout << "\n****** Set meshenv to TRAINING mode ******\n" << endl;
+        else cout << "\n****** Set meshenv to TESTING mode ******\n" << endl;
+        isTraining = b;
+    };
     void setFinalFaceCount(int fc) { finalFaceCount = fc;};
 
     void printEpisodeStats();
@@ -66,6 +70,7 @@ private:
     float maxRewardGiven = 0;
 
     // episode stats
+    long long int totalEnvSteps = 0;
     float episodeRewards = 0;
     int numCollapses = 0;
     int numNonManifoldCollapses = 0;

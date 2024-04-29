@@ -75,7 +75,7 @@ int main(int argc, char *argv[]) {
             j["reward"] = actionResponse.first;
             j["isTerminal"] = actionResponse.second;
             j["state"] = env.getState();
-            j["message"] = "Took action of removing edge with ID";
+            j["message"] = "Took action of removing edge with ID" + action_str;
         } else if (request.find("GET /update-env") != std::string::npos) { // endpoint /step?action={edgeIdToRemove}&meshFilePath={pathtomeshfile}&
             // prse action from the request
             string action_str;
@@ -111,6 +111,7 @@ int main(int argc, char *argv[]) {
                 j["message"] = "\nUpdated mesh env with new mesh file.";
                 env.setMeshFilePath(meshFilePath_str);
                 env.reset();
+                j["state"] = env.getState();
             }
 
             string faceCount_str;
@@ -129,13 +130,20 @@ int main(int argc, char *argv[]) {
                 int faceCount = std::stoi(faceCount_str);
                 env.setFinalFaceCount(faceCount);
             }
+        } else if (request.find("GET /save-mesh") != std::string::npos) {
+            if (!env.isTraining) {env.printEpisodeStats(); cout << endl;};
+
+            string savePath = env.getMeshFilePath() + "_to_" + to_string(env.getFaceCount()) + "f_RL.obj";
+            j["message"]  = "Saved current state of mesh to " + savePath;
+            env.saveToFile(savePath);
+            // running = false; // shut down server after training / testing done
         } else if (request.find("GET /bye") != std::string::npos) {
             if (!env.isTraining) {env.printEpisodeStats(); cout << endl;};
 
             string savePath = env.getMeshFilePath() + "_to_" + to_string(env.getFaceCount()) + "f_RL.obj";
             j["message"]  = "Server is shutting down... saving the current state of the mesh at " + savePath;
-            env.saveToFile(savePath);
-            // running = false; // shut down server after training / testing done
+            if (!env.isTraining) env.saveToFile(savePath);
+            running = false; // shut down server after training / testing done
         } else {
             j["message"] = "Invalid request.";
         }

@@ -16,7 +16,7 @@ if len(mesh.faces) > face_count:
     simplified_mesh = mesh.simplify_quadric_decimation(face_count=face_count)
     print("\nafter simplification:")
     # Save the simplified mesh
-    simplified_mesh.export(f"meshes/{mesh_name}_{face_count}f.obj")
+    simplified_mesh.export(f"meshes/{mesh_name}_{face_count}f_trimesh.obj")
     # mesh = trimesh.load(f"meshes/{mesh_name}_{face_count}f.obj")
     print("num vertices", len(simplified_mesh.vertices))
     print("num faces", len(simplified_mesh.faces))

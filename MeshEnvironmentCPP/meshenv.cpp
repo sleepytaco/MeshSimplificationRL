@@ -123,7 +123,7 @@ pair<float, bool> MeshEnv::step(int action) {
         pair<int, float> res = halfEdgeMesh->removeEdge(edgeId);
         int errorCode = res.first;
         if (errorCode == 2) {
-            reward = 0; //-200;
+            reward = -50;
             numDeletedEdgeCollapses ++;
             if (printSteps)  cout << "--- edge id " << action << " does not exist (was deleted)" << endl;
         } else if (errorCode == 3) {
