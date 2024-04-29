@@ -1,6 +1,12 @@
-MAX_FACE_COUNT = 200
-MAX_VERTEX_COUNT = 102
-MAX_EDGE_COUNT = 300
+# mesh cnn meshes config (med sized meshes)
+ROOT_DIR = "/"
+BASE_MESH_DIR = "../MeshCNN/datasets/shrec_16/"
+MESH_NAME = "armadillo/train/T54.obj"
+MAX_FACE_COUNT = 500 # 200
+MAX_VERTEX_COUNT = 252 # 102
+MAX_EDGE_COUNT = 750 # 300
+
+MESH_FILE = BASE_MESH_DIR + MESH_NAME
 
 FINAL_FACE_COUNT = 50
 
