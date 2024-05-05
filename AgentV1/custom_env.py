@@ -85,20 +85,21 @@ class MeshEnv(gym.Env):
         pass
 
     def close(self):
-        # clean up resources (optional)
-        # save mesh state, shutdown c++ server
-        self.reset()
-        # requests.get(f"http://{MESH_SERVER_HOST}:{MESH_SERVER_PORT}/bye")
+        response = requests.get(f"http://{MESH_SERVER_HOST}:{MESH_SERVER_PORT}/bye")   # save mesh state as obj files, shutdown c++ server
+        info = response.json()["info"]
+        # self.plot_qem_costs(info)
+        return info
 
     def plot_qem_costs(self, info):
         if not self.training:
+            # print(info)
             plt.plot(info["agentQEMCostsList"], label='RL Agent QEM Costs')
             plt.plot(info["greedyQEMCostsList"], label='Greedy QEM Costs')
             plt.plot(info["randomQEMCostsList"], label='Random QEM Costs')
 
             plt.xlabel('Steps')
             plt.ylabel('QEM Costs')
-            plt.title('Plot of RL Agent QEM Costs vs Greedy QEM Costs vs Random Agent QEM Costs')
+            plt.title('Plot of RL Agent QEM Costs vs Greedy QEM Costs Costs')
             plt.legend()
 
             plt.show()
