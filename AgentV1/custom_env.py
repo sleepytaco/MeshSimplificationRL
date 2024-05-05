@@ -72,10 +72,11 @@ class MeshEnv(gym.Env):
         data = response.json()
         assert "state" in data, "'state' key not in the JSON returned by the server D:"
         state = np.array(data["state"], dtype=np.float32).flatten()
-        info = {"message": data["message"]}
+        info = data["info"]  # {"message": data["message"]}
         return state, info
 
     def step(self, action):
+        # print(action)
         # take a step in the environment based on the given action
         # return the next observation, reward, done flag, and any additional information
         response = requests.get(f"http://{MESH_SERVER_HOST}:{MESH_SERVER_PORT}/step?action={action}&")
@@ -86,7 +87,7 @@ class MeshEnv(gym.Env):
         state = np.array(data["state"], dtype=np.float32).flatten() #.view(STATE_SPACE_SIZE * 3, -1)
         reward = data["reward"]
         done = truncated = data["isTerminal"]
-        info = {"message": data["message"]}
+        info = data["info"] # {"message": data["message"]}
         return state, reward, done, truncated, info
 
     def render(self, mode='human'):
