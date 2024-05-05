@@ -7,6 +7,12 @@
 using namespace Eigen;
 using namespace std;
 
+struct CustomCompare {
+    bool operator()(const pair<float, Edge*>& lhs, const pair<float, Edge*>& rhs) const {
+        return lhs.first < rhs.first; // greater sign coz i am sorting priority by least edge cost
+    }
+};
+
 class HalfEdgeMesh
 {
 public:
@@ -30,15 +36,19 @@ public:
     Vertex* edgeCollapse(Edge* edge, Vector3f collapsePoint); // this returns the vertex obj ptr to which the edge was collapsed to
 
     // geoprocessing operations
-    void initQEMCosts(); // simplify operation
+    void initQEMCosts(bool greedyQEMAgent = false); // simplify operation
     float updateEdgeQEMCost(Edge* edge);
-    Vector3f minimizeEdgeQuadric(Edge* edge);
+    // Vector3f minimizeEdgeQuadric(Edge* edge);
     pair<int, float> removeEdge(int edgeId);
 
     unordered_map<int, Vertex*> vertexMap; // maps vertexID --> Vertex
     unordered_map<int, Face*> faceMap; // maps faceID --> Face
     unordered_map<int, Edge*> edgeMap; // maps edgeID --> Edge
     unordered_map<int, HalfEdge*> halfEdgeMap;
+
+    float randomQEMStep();
+    float greedyQEMStep();
+    multiset<pair<float, Edge*>, CustomCompare> priorityQueue; // (edgeCost, edgeID, minCollapsePt)
 private:
     // unique id counters for each halfedge mesh element
     unsigned long long halfEdgeIdCounter = 0;
@@ -55,6 +65,8 @@ private:
     // geo processing helpers
     bool isManifoldAfterEdgeCollapse(Edge* edge, Vector3f collapsePoint);
     Matrix4f getVertexQuadric(Vertex *v);
+    void addEdgeToQueue(multiset<pair<float, Edge*>, CustomCompare> &priorityQueue, Edge* edge);
+    void updateEdgeInQueue(multiset<pair<float, Edge*>, CustomCompare> &priorityQueue, Edge* edgeToUpdate);
 
     // utils
     void addHalfEdges(vector<HalfEdge*> hes);

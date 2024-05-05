@@ -6,6 +6,7 @@
 #include <unordered_map>
 #include "Eigen/StdVector"
 #include "Eigen/Dense"
+#include "nlohmann/json.hpp"
 
 
 EIGEN_DEFINE_STL_VECTOR_SPECIALIZATION(Eigen::Matrix2f);
@@ -14,6 +15,7 @@ EIGEN_DEFINE_STL_VECTOR_SPECIALIZATION(Eigen::Matrix3i);
 
 using namespace Eigen;
 using namespace std;
+using json = nlohmann::json;
 
 
 class MeshEnv
@@ -32,7 +34,9 @@ public:
     void loadFromFile();
     void saveToFile(const std::string &filePath);
 
-    HalfEdgeMesh* halfEdgeMesh;
+    HalfEdgeMesh* halfEdgeMesh; // this is the mesh the RL agent updates
+    HalfEdgeMesh* halfEdgeMeshGreedy; // this is the mesh the default QEM algo updates (greedily collapses min QEM cost edges)
+    HalfEdgeMesh* halfEdgeMeshRandom; // this is the mesh where the edges are collapsed randomly each step
 
     bool isTraining = true;
     int finalFaceCount = 50; // final simplified mesh must contain atmost these many faces (used as terminal condition)
@@ -50,6 +54,7 @@ public:
     void setFinalFaceCount(int fc) { finalFaceCount = fc;};
 
     void printEpisodeStats();
+    void saveEpisodeStats(json& j);
 
     void reset();
     vector<vector<float>>& getState();
@@ -76,6 +81,10 @@ private:
     int numNonManifoldCollapses = 0;
     int numDeletedEdgeCollapses = 0;
     int numDNEEdgeCollapses = 0;
+    vector<float> agentQEMCosts;
+    vector<float> greedyQEMCosts; // deterministic greedy QEM agent
+    vector<float> randomQEMCosts; // random agent
+    float episodeQEMRewards = 0;
 
     // must be set when env is initialized
     // any thing beyond these will break the RL agent

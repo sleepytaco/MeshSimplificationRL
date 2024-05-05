@@ -7,21 +7,20 @@
 #include "util/tiny_obj_loader.h"
 #include <cassert>
 
-//#include <QFileInfo>
-//#include <QString>
-
-using namespace Eigen;
-using namespace std;
 
 MeshEnv::MeshEnv(string meshFilePath, int maxFaceCount,  int maxVertexCount, int maxEdgeCount)
     : meshFilePath(meshFilePath), maxEdgeCount(maxEdgeCount),  maxVertexCount(maxVertexCount), maxFaceCount(maxFaceCount) {
     halfEdgeMesh = new HalfEdgeMesh();
+    halfEdgeMeshGreedy = new HalfEdgeMesh();
+    halfEdgeMeshRandom = new HalfEdgeMesh();
 }
 
 void MeshEnv::printEpisodeStats() {
+
     if (isTraining) cout << (reachedRequiredFaces ? "Reached the required number of faces!" : "Did NOT reach the required number of faces (episode TRUNCATED)") << endl;
     cout << "maximum reward recived: " << maxRewardGiven << endl;
     cout << "total episode rewards sum: " << episodeRewards << endl;
+    cout << "total episode QEM rewards sum: " << episodeQEMRewards << endl;
     cout << "total episode steps: " << numCollapses + numNonManifoldCollapses + numDeletedEdgeCollapses + numDNEEdgeCollapses << endl;
     cout << "total valid edge collapses: " << numCollapses << endl;
     cout << "total non-manifold edge collapses: " << numNonManifoldCollapses << endl;
@@ -30,6 +29,30 @@ void MeshEnv::printEpisodeStats() {
     cout << "face count before reset: " << halfEdgeMesh->faceMap.size() << endl;
     cout << "vertices count before reset: " << halfEdgeMesh->vertexMap.size() << endl;
     cout << "edge count before reset: " << halfEdgeMesh->edgeMap.size() << endl;
+}
+
+void MeshEnv::saveEpisodeStats(json& j) {
+
+    cout << "Saving episode stats in info dict..." << endl;
+    j["hasInfo"] = true;
+    j["reachedRequiredFaces"] = reachedRequiredFaces;
+    j["maxRLQEMRewardGiven"] = maxRewardGiven;
+    j["totalEpisodeRewards"] = episodeRewards;
+    j["totalEpisodeSteps"] = numCollapses + numNonManifoldCollapses + numDeletedEdgeCollapses + numDNEEdgeCollapses;
+    j["totalValidEdgeCollapses"] = numCollapses;
+    j["totalNonManifoldEdgeCollapses"] = numNonManifoldCollapses;
+    j["totalDeletedEdgeCollapses"] = numDeletedEdgeCollapses;
+    j["totalDNEEdgeCollapses"] = numDNEEdgeCollapses;
+    j["faceCountBeforeReset"] = halfEdgeMesh->faceMap.size();
+    j["vertexCountBeforeReset"] = halfEdgeMesh->vertexMap.size();
+    j["edgeCountBeforeReset"] = halfEdgeMesh->edgeMap.size();
+
+//    j["randomQEMCostsList"] = randomQEMCosts;
+//    j["greedyQEMCostsList"] = greedyQEMCosts;
+//    j["agentQEMCostsList"] = agentQEMCosts;
+
+    // j["agentQEMCostMean"] = agentQEMCostSum / agentQEMCosts;
+    j["episodeQEMRewardsSum"] = episodeQEMRewards;
 }
 
 void MeshEnv::reset() {
@@ -47,6 +70,10 @@ void MeshEnv::reset() {
     numDeletedEdgeCollapses = 0;
     numDNEEdgeCollapses = 0;
     reachedRequiredFaces = false;
+    agentQEMCosts.clear();
+    greedyQEMCosts.clear();
+    randomQEMCosts.clear();
+    episodeQEMRewards = 0;
 //    cout << "faces: " << halfEdgeMesh->faceMap.size() << endl;
 //    cout << "vertices: " << halfEdgeMesh->vertexMap.size() << endl;
 //    cout << "edges: " << halfEdgeMesh->edgeMap.size() << endl;
@@ -58,6 +85,8 @@ void MeshEnv::initMeshEnv() {
     assert(meshFilePath != "" && "Mesh filepath not set!");
     loadFromFile(); // sets up halfedge datastruct for the specified mesh file path during meshenv initialization
     halfEdgeMesh->initQEMCosts(); // calcs up QEM cost of each edge in the mesh
+    halfEdgeMeshGreedy->initQEMCosts(true); // calcs up QEM cost of each edge in the mesh
+    halfEdgeMeshRandom->initQEMCosts();
 
     initialEdgeCount = halfEdgeMesh->edgeMap.size();
     assert(halfEdgeMesh->edgeMap.size() <= maxEdgeCount && "num of edges in input mesh > maxEdgeCount");
@@ -123,11 +152,11 @@ pair<float, bool> MeshEnv::step(int action) {
         pair<int, float> res = halfEdgeMesh->removeEdge(edgeId);
         int errorCode = res.first;
         if (errorCode == 2) {
-            reward = -50;
+            reward = -50; // turns out i NEED this, else the agent picks it
             numDeletedEdgeCollapses ++;
             if (printSteps)  cout << "--- edge id " << action << " does not exist (was deleted)" << endl;
         } else if (errorCode == 3) {
-            reward = -100;
+            reward = -50;
             numNonManifoldCollapses ++;
             if (printSteps)  cout << "--- edge id " << action << " was not collapsed due to breaking manifoldness" << endl;
         } else {
@@ -135,6 +164,14 @@ pair<float, bool> MeshEnv::step(int action) {
             reward = -res.second; // since RL tries to maximize the sum of rewards
             numCollapses ++;
             if (printSteps)  cout << "removed edge id " << action << endl;
+
+            episodeQEMRewards += reward;
+
+            // store QEM costs collected
+            float scale = 100;
+            agentQEMCosts.push_back(res.second*scale);
+            if (!isTraining) greedyQEMCosts.push_back(halfEdgeMeshGreedy->greedyQEMStep()*scale);
+            if (!isTraining) randomQEMCosts.push_back(halfEdgeMeshRandom->randomQEMStep()*scale);
         }
     }
 
@@ -163,6 +200,8 @@ void MeshEnv::initFromVectors(const vector<Vector3f> &vertices, const vector<Vec
     _vertices = vertices;
     _faces    = faces;
     halfEdgeMesh = new HalfEdgeMesh();
+    halfEdgeMeshGreedy = new HalfEdgeMesh();
+    halfEdgeMeshRandom = new HalfEdgeMesh();
 }
 
 void MeshEnv::loadFromFile() {
@@ -216,29 +255,42 @@ void MeshEnv::loadFromFile() {
 //    delete halfEdgeMesh;
 //    halfEdgeMesh = new HalfEdgeMesh();
     halfEdgeMesh->buildHalfEdgeMesh(_vertices, _faces);
+    if (!isTraining) halfEdgeMeshGreedy->buildHalfEdgeMesh(_vertices, _faces);
+    if (!isTraining) halfEdgeMeshRandom->buildHalfEdgeMesh(_vertices, _faces);
 }
 
 void MeshEnv::saveToFile(const string &filePath) {
-    ofstream outfile;
-    outfile.open(filePath);
 
-    halfEdgeMesh->createObjFileVerticesFaces(_vertices, _faces);
+    cout << "********** Saving current mesh state as OBJ file... **********\n" << endl;
+    string baseFilePath = filePath;
 
-    // Write vertices
-    for (size_t i = 0; i < _vertices.size(); i++)
-    {
-        const Vector3f &v = _vertices[i];
-        outfile << "v " << v[0] << " " << v[1] << " " << v[2] << endl;
+    vector<HalfEdgeMesh*> meshes = {halfEdgeMesh, halfEdgeMeshGreedy, halfEdgeMeshRandom};
+    vector<string> names = {"_to_" + to_string(getFaceCount()) + "f_RL.obj",
+                           "_to_" + to_string(getFaceCount()) + "f_GreedyQEM.obj",
+                           "_to_" + to_string(getFaceCount()) + "f_RandomQEM.obj"};
+
+    for (int i=0; i<meshes.size(); ++i) {
+        ofstream outfile;
+        outfile.open(baseFilePath + names[i]);
+
+        meshes[i]->createObjFileVerticesFaces(_vertices, _faces);
+
+        // Write vertices
+        for (size_t i = 0; i < _vertices.size(); i++)
+        {
+            const Vector3f &v = _vertices[i];
+            outfile << "v " << v[0] << " " << v[1] << " " << v[2] << endl;
+        }
+
+        // Write faces
+        for (size_t i = 0; i < _faces.size(); i++)
+        {
+            const Vector3i &f = _faces[i];
+            outfile << "f " << (f[0]+1) << " " << (f[1]+1) << " " << (f[2]+1) << endl;
+        }
+
+        outfile.close();
     }
-
-    // Write faces
-    for (size_t i = 0; i < _faces.size(); i++)
-    {
-        const Vector3i &f = _faces[i];
-        outfile << "f " << (f[0]+1) << " " << (f[1]+1) << " " << (f[2]+1) << endl;
-    }
-
-    outfile.close();
 }
 
 

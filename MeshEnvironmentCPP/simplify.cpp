@@ -10,60 +10,14 @@ Matrix4f HalfEdgeMesh::getVertexQuadric(Vertex *v) {
     return Q;
 }
 
-Vector3f HalfEdgeMesh::minimizeEdgeQuadric(Edge* edge) {
-
-    Matrix4f& Qij = edge->Q;
-
-    Vertex* v0 = edge->he->vertex;
-    Vertex* v1 = edge->he->twin->vertex;
-    Vector3f edgeMP = (v0->vertex3f + v1->vertex3f) / 2.f;
-
-    //if (Qij == Matrix4f::Zero()) return edgeMP;
-
-    Matrix4f K;
-    K << Qij(0, 0), Qij(0, 1), Qij(0, 2), Qij(0, 3),
-         Qij(1, 0), Qij(1, 1), Qij(1, 2), Qij(1, 3),
-         Qij(2, 0), Qij(2, 1), Qij(2, 2), Qij(2, 3),
-         0.f, 0.f, 0.f, 1.f;
-
-    // inverse of K doesn not exist
-    // then, return the point that has minimum edge cost - between v1, v2, vMP
-
-    auto calcEdgeCost = [Qij] (Vector3f vec) {
-        Vector4f x_homo(vec.x(), vec.y(), vec.z(), 1.f); // homogeneous coord of pt x
-        return (x_homo.transpose() * Qij * x_homo).norm();
-    };
-
-    if (abs(K.determinant()) == 0)  {
-        // return edgeMP;
-        // Vector4f x_homo(edgeMP.x(), edgeMP.y(), edgeMP.z(), 1.f); // homogeneous coord of pt x
-        auto minEdgeCost = calcEdgeCost(edgeMP);
-        Vector3f minEdgeCostPoint = edgeMP;
-
-        for (Vector3f x : {v0->vertex3f, v1->vertex3f}) {
-            // Vector4f x_homo(x.x(), x.y(), x.z(), 1.f); // homogeneous coord of pt x
-            auto edgeCost = calcEdgeCost(x); // x_homo.transpose() * Qij * x_homo;
-            if (edgeCost < minEdgeCost) {
-                minEdgeCostPoint = x;
-            }
-        }
-        return minEdgeCostPoint; // return the mid point between the edge endpoints
-    }
-
-    Matrix4f KInverse = K.inverse();
-    Vector4f x = KInverse * Vector4f(0.f, 0.f, 0.f, 1.f);
-
-    return Vector3f(x.x(), x.y(), x.z());
-}
-
-
 float HalfEdgeMesh::updateEdgeQEMCost(Edge* edge) {
     Vertex* i = edge->he->vertex;
     Vertex* j = edge->he->twin->vertex;
     Matrix4f Qij = i->Q + j->Q;
     edge->Q = Qij;
 
-    Vector3f x = minimizeEdgeQuadric(edge);
+    // Vector3f x = minimizeEdgeQuadric(edge);
+    Vector3f edgeMP = (i->vertex3f + j->vertex3f) / 2.f;
 
     auto calcEdgeCost = [Qij] (Vector3f vec) {
         Vector4f x_homo(vec.x(), vec.y(), vec.z(), 1.f); // homogeneous coord of pt x
@@ -71,11 +25,81 @@ float HalfEdgeMesh::updateEdgeQEMCost(Edge* edge) {
     };
 
     // Vector4f x_homo(x.x(), x.y(), x.z(), 1.f); // homogeneous coord of pt x
-    float edgeCost = calcEdgeCost(x);
+    float edgeCost = calcEdgeCost(edgeMP);
     edge->QEMCost = edgeCost;
     return edgeCost;
 }
 
+
+void HalfEdgeMesh::addEdgeToQueue(multiset<pair<float, Edge*>, CustomCompare> &priorityQueue, Edge* edge) {
+    Vertex* i = edge->he->vertex;
+    Vertex* j = edge->he->twin->vertex;
+    Matrix4f Qij = i->Q + j->Q;
+    edge->Q = Qij;
+
+    // Vector3f x = minimizeEdgeQuadric(edge);
+    Vector3f edgeMP = (i->vertex3f + j->vertex3f) / 2.f;
+
+
+    auto calcEdgeCost = [Qij] (Vector3f vec) {
+        Vector4f x_homo(vec.x(), vec.y(), vec.z(), 1.f); // homogeneous coord of pt x
+        return (x_homo.transpose() * Qij * x_homo).norm();
+    };
+
+    // Vector4f x_homo(x.x(), x.y(), x.z(), 1.f); // homogeneous coord of pt x
+    float edgeCost = calcEdgeCost(edgeMP); //x_homo.transpose() * Qij * x_homo;
+    edge->QEMCost = edgeCost;
+    priorityQueue.insert({calcEdgeCost(edgeMP), edge});
+}
+
+void HalfEdgeMesh::updateEdgeInQueue(multiset<pair<float, Edge*>, CustomCompare> &priorityQueue, Edge* edgeToUpdate) {
+    // remove edge from pq
+    auto it = priorityQueue.begin();
+    bool removedFromQueue = false;
+    while (it != priorityQueue.end()) {
+        if (it->second->id == edgeToUpdate->id) {
+            priorityQueue.erase(it);
+            removedFromQueue = true;
+            break;
+        }
+        ++it;
+    }
+
+    if (!removedFromQueue) { // actually this is fine, as greedy QEM can ignore edges that lead to manifoldness, but its ok if it adds it back
+        // cout << edgeToUpdate->id << endl;
+    }
+    // assert(removedFromQueue);
+
+    // add edge back to queue
+    addEdgeToQueue(priorityQueue, edgeToUpdate);
+}
+
+// assigns a QEM cost to each edge in the mesh
+void HalfEdgeMesh::initQEMCosts(bool greedyQEMAgent) {
+    // step 1. compute Q for each triangle/face
+//    for (auto& fm : faceMap) {
+//        Face* face = fm.second;
+//        face->getFaceQuadric(); // computes and stores quadric for face within the face object
+//    }
+
+    // step 2. compute Q for each vertex to the sum of Qs of incident triangles
+    for (auto& vm : vertexMap) {
+        Vertex* vertex = vm.second;
+        vertex->Q = getVertexQuadric(vertex); // compute and stores quadric for vertex within the vertex object
+    }
+
+    // step 3. for each edge find pt x minimizing error, set cost to Q(x)
+    // custom comparator for multiset priority queue
+    for (auto& em : edgeMap) {
+        Edge* edge = em.second;
+        updateEdgeQEMCost(edge);
+        addEdgeToQueue(priorityQueue, edge);
+        // cout << "added edge with id: " << edge->id << endl;
+    }
+
+}
+
+// RL agent's step function
 pair<int, float> HalfEdgeMesh::removeEdge(int edgeId) {
     /*
      * returns <error code, QEM cost for that edge collapse>
@@ -90,6 +114,8 @@ pair<int, float> HalfEdgeMesh::removeEdge(int edgeId) {
 
     Edge* edge = edgeMap[edgeId];
     float edgeQEMCost = edge->QEMCost;
+    Matrix4f edgeQij = edge->Q;
+
     Vertex* v0 = edge->he->vertex;
     Vertex* v1 = edge->he->twin->vertex;
     Vector3f edgeMP = (v0->vertex3f + v1->vertex3f) / 2.f;
@@ -98,7 +124,7 @@ pair<int, float> HalfEdgeMesh::removeEdge(int edgeId) {
         return {3, -1};
 
     // set quadric at new vertex to Qij
-    Matrix4f Qij = edge->Q;
+    Matrix4f Qij = edgeQij;
     collapsedVertex->Q = Qij;
 
     // update cost of edges touching new vertex
@@ -113,23 +139,91 @@ pair<int, float> HalfEdgeMesh::removeEdge(int edgeId) {
 
 }
 
-// assigns a QEM cost to each edge in the mesh
-void HalfEdgeMesh::initQEMCosts() {
-    // step 1. compute Q for each triangle/face
-//    for (auto& fm : faceMap) {
-//        Face* face = fm.second;
-//        face->getFaceQuadric(); // computes and stores quadric for face within the face object
-//    }
+float HalfEdgeMesh::greedyQEMStep() {
 
-    // step 2. compute Q for each vertex to the sum of Qs of incident triangles
-    for (auto& vm : vertexMap) {
-        Vertex* vertex = vm.second;
-        vertex->Q = getVertexQuadric(vertex); // compute and stores quadric for vertex within the vertex object
+    // run until we reach target num of faces
+    float QEMCost = 666;
+    int numCollapses = 0;
+    while (numCollapses<1 && priorityQueue.size() > 0) {
+        // auto minEdge = *priorityQueue.begin();
+        QEMCost = priorityQueue.begin()->first;
+        Edge* edge = priorityQueue.begin()->second;
+        Matrix4f edgeQij = edge->Q;
+        priorityQueue.erase(priorityQueue.begin());
+
+        if (edgeMap.find(edge->id) == edgeMap.end()) // NEED THIS check as edgeCollapse operation deletes some surrounding edges from the edgeMap
+            continue;
+
+        Vertex* i = edge->he->vertex;
+        Vertex* j = edge->he->twin->vertex;
+        Vector3f edgeMP = (i->vertex3f + j->vertex3f) / 2.f;
+
+        Vertex* collapsedVertex = edgeCollapse(edge, edgeMP); // returns vertex to which the edge was collapsed to
+        if (collapsedVertex == nullptr) // if null, then the edge was not collapsed by edgeCollapse func due to violating manifoldness
+            continue;
+
+        // set quadric at new vertex to Qij
+        Matrix4f Qij = edgeQij;
+        collapsedVertex->Q = Qij;
+
+        // update cost of edges touching new vertex
+        HalfEdge* hptr = collapsedVertex->he;
+        do {
+            Edge* incidentEdge = hptr->edge;
+            updateEdgeInQueue(priorityQueue, incidentEdge);
+            hptr = hptr->twin->next;
+        } while (hptr != collapsedVertex->he);
+
+        numCollapses ++;
     }
 
-    // step 3. for each edge find pt x minimizing error, set cost to Q(x)
-    for (auto& em : edgeMap) {
-        Edge* edge = em.second;
-        updateEdgeQEMCost(edge);
+    return QEMCost;
+}
+
+float HalfEdgeMesh::randomQEMStep() {
+    // run until we reach target num of faces
+    float QEMCost = 666;
+    int numCollapses = 0;
+    while (numCollapses<1) {
+        // pick random edge ID
+        // int rand_num=rand()%99+1; // produces numbers from 1-99
+        int edgeItemNumber = arc4random()%edgeMap.size();
+
+        auto it = edgeMap.begin();
+        while (edgeItemNumber > 0) {
+            ++it; // move the edgeMap iterator forward
+            edgeItemNumber--;
+        }
+
+//        if (edgeMap.find(edge->id) == edgeMap.end()) // NEED THIS check as edgeCollapse operation deletes some surrounding edges from the edgeMap
+//            continue;
+
+        Edge* edge = it->second; // edgeMap[edgeId];
+        Matrix4f edgeQij = edge->Q;
+        QEMCost = edge->QEMCost;
+
+        Vertex* i = edge->he->vertex;
+        Vertex* j = edge->he->twin->vertex;
+        Vector3f edgeMP = (i->vertex3f + j->vertex3f) / 2.f;
+
+        Vertex* collapsedVertex = edgeCollapse(edge, edgeMP); // returns vertex to which the edge was collapsed to
+        if (collapsedVertex == nullptr) // if null, then the edge was not collapsed by edgeCollapse func due to violating manifoldness
+            continue;
+
+        // set quadric at new vertex to Qij
+        Matrix4f Qij = edgeQij;
+        collapsedVertex->Q = Qij;
+
+        // update cost of edges touching new vertex
+        HalfEdge* hptr = collapsedVertex->he;
+        do {
+            Edge* incidentEdge = hptr->edge;
+            updateEdgeQEMCost(incidentEdge);
+            hptr = hptr->twin->next;
+        } while (hptr != collapsedVertex->he);
+
+        numCollapses ++;
     }
+
+    return QEMCost;
 }

@@ -46,9 +46,15 @@ int main(int argc, char *argv[]) {
 
         string response;
         json j;
+
+        j["info"]["hasInfo"] = false;
+        // env.saveEpisodeStats(j["info"]);
         if (request.find("GET /hello") != std::string::npos) {
             j["message"]  = "Server is running :D";
+        } else if (request.find("GET /get-info") != std::string::npos) {
+            env.saveEpisodeStats(j["info"]);
         } else if (request.find("GET /reset") != std::string::npos) {
+            env.saveEpisodeStats(j["info"]);
             env.reset();
             j["state"] = env.getState();
             j["message"]  = "MeshEnv has been reset to initial mesh state!";
@@ -110,6 +116,7 @@ int main(int argc, char *argv[]) {
             if (meshFilePath_str != "") {
                 j["message"] = "\nUpdated mesh env with new mesh file.";
                 env.setMeshFilePath(meshFilePath_str);
+                env.saveEpisodeStats(j["info"]);
                 env.reset();
                 j["state"] = env.getState();
             }
@@ -133,17 +140,17 @@ int main(int argc, char *argv[]) {
         } else if (request.find("GET /save-mesh") != std::string::npos) {
             if (!env.isTraining) {env.printEpisodeStats(); cout << endl;};
 
-            string savePath = env.getMeshFilePath() + "_to_" + to_string(env.getFaceCount()) + "f_RL.obj";
+            string savePath = env.getMeshFilePath(); // + "_to_" + to_string(env.getFaceCount()) + "f_RL.obj";
             j["message"]  = "Saved current state of mesh to " + savePath;
             env.saveToFile(savePath);
             // running = false; // shut down server after training / testing done
         } else if (request.find("GET /bye") != std::string::npos) {
             if (!env.isTraining) {env.printEpisodeStats(); cout << endl;};
 
-            string savePath = env.getMeshFilePath() + "_to_" + to_string(env.getFaceCount()) + "f_RL.obj";
+            string savePath = env.getMeshFilePath(); // + "_to_" + to_string(env.getFaceCount()) + "f_RL.obj";
             j["message"]  = "Server is shutting down... saving the current state of the mesh at " + savePath;
             if (!env.isTraining) env.saveToFile(savePath);
-            running = false; // shut down server after training / testing done
+            // running = false; // shut down server after training / testing done
         } else {
             j["message"] = "Invalid request.";
         }
