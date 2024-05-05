@@ -187,18 +187,21 @@ float HalfEdgeMesh::randomQEMStep() {
     while (numCollapses<1) {
         // pick random edge ID
         // int rand_num=rand()%99+1; // produces numbers from 1-99
-        int edgeItemNumber = arc4random()%edgeMap.size();
-
-        auto it = edgeMap.begin();
-        while (edgeItemNumber > 0) {
-            ++it; // move the edgeMap iterator forward
-            edgeItemNumber--;
+        int edgeItemNumber = arc4random()%750;
+        while (edgeMap.find(edgeItemNumber) == edgeMap.end()) {
+            edgeItemNumber = arc4random()%750;
         }
+
+//        auto it = edgeMap.begin();
+//        while (edgeItemNumber > 0) {
+//            ++it; // move the edgeMap iterator forward
+//            edgeItemNumber--;
+//        }
 
 //        if (edgeMap.find(edge->id) == edgeMap.end()) // NEED THIS check as edgeCollapse operation deletes some surrounding edges from the edgeMap
 //            continue;
 
-        Edge* edge = it->second; // edgeMap[edgeId];
+        Edge* edge = edgeMap[edgeItemNumber]; // it->second; //
         Matrix4f edgeQij = edge->Q;
         QEMCost = edge->QEMCost;
 

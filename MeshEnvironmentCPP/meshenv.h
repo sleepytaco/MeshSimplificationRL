@@ -34,6 +34,7 @@ public:
     void loadFromFile();
     void saveToFile(const std::string &filePath);
 
+    HalfEdgeMesh* originalMesh;
     HalfEdgeMesh* halfEdgeMesh; // this is the mesh the RL agent updates
     HalfEdgeMesh* halfEdgeMeshGreedy; // this is the mesh the default QEM algo updates (greedily collapses min QEM cost edges)
     HalfEdgeMesh* halfEdgeMeshRandom; // this is the mesh where the edges are collapsed randomly each step
@@ -64,8 +65,8 @@ private:
     vector<Vector3f> _vertices;
     vector<Vector3i> _faces;
 
-    float emptyVal = 0; // the value to fill empty rows with
-    int maxSteps = 3000;
+    float emptyVal = -1; // the value to fill empty rows with
+    int maxSteps = 1750;
     bool printSteps = false; // prints the edge collapse operations out
     bool reachedRequiredFaces = false;
 

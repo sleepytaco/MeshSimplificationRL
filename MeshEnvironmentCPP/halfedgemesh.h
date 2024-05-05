@@ -1,3 +1,4 @@
+#pragma once
 #include "halfedge.h"
 #include <iostream>
 #include <unordered_set>

@@ -145,7 +145,7 @@ int main(int argc, char *argv[]) {
             env.saveToFile(savePath);
             // running = false; // shut down server after training / testing done
         } else if (request.find("GET /bye") != std::string::npos) {
-            if (!env.isTraining) {env.printEpisodeStats(); cout << endl;};
+            if (!env.isTraining) {env.saveEpisodeStats(j["info"]); env.printEpisodeStats(); cout << endl;};
 
             string savePath = env.getMeshFilePath(); // + "_to_" + to_string(env.getFaceCount()) + "f_RL.obj";
             j["message"]  = "Server is shutting down... saving the current state of the mesh at " + savePath;
