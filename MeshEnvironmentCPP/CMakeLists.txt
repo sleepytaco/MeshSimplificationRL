@@ -27,7 +27,8 @@ add_executable(${PROJECT_NAME}
     atomic.cpp
     halfedgeutils.cpp
     simplify.cpp
-    errormetric.hpp
+    errormetric.cpp
+    meshenvV2.cpp
 
     halfedgemesh.h
     halfedge.h

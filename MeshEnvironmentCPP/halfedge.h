@@ -36,9 +36,6 @@ struct Vertex {
     // for quadric error simplification
     Matrix4f Q = Matrix4f::Zero(); // quadric
 
-    // pre-computed qty for loop subdivision (this is filled for newly created vertices during the edgeSplit operation)
-    Vector3f newVertexPositionForLoop = Vector3f(0.f, 0.f, 0.f);
-
     Vertex() {}
     Vertex(int id, Vector3f vertex3f) : id(id), vertex3f(vertex3f) {}
 
@@ -65,6 +62,8 @@ struct Edge {
     HalfEdge* he = nullptr;
     Matrix4f Q; // quadric
     float QEMCost = 0;
+
+    std::vector<float> edgeFeatures = {0, 0, 0, 0, 0};
 
     Edge() {}
     Edge(int id) : id(id) {}

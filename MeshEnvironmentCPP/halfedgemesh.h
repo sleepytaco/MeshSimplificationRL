@@ -1,4 +1,5 @@
 #pragma once
+
 #include "halfedge.h"
 #include <iostream>
 #include <unordered_set>
@@ -37,6 +38,7 @@ public:
     Vertex* edgeCollapse(Edge* edge, Vector3f collapsePoint); // this returns the vertex obj ptr to which the edge was collapsed to
 
     // geoprocessing operations
+    void computeEdgeFeatures();     // used in meshenv v2
     void initQEMCosts(bool greedyQEMAgent = false); // simplify operation
     float updateEdgeQEMCost(Edge* edge);
     // Vector3f minimizeEdgeQuadric(Edge* edge);
@@ -78,5 +80,6 @@ private:
     void deleteEdges(vector<Edge*> es);
     void deleteFaces(vector<Face*> fs);
     void deleteVertices(vector<Vertex*> vs);
+
 };
 

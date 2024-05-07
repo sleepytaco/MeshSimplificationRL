@@ -1,8 +1,8 @@
-#include "halfedgemesh.h"
+#include "meshenv.h"
 #include <random>
 
 // samples N points from mesh
-vector<Vector3f> samplePoints(int numPoints, HalfEdgeMesh* mesh) {
+vector<Vector3f> MeshEnv::samplePoints(int numPoints, HalfEdgeMesh* mesh) {
 
     if (numPoints > mesh->vertexMap.size()) numPoints = mesh->vertexMap.size();
 
@@ -25,7 +25,7 @@ vector<Vector3f> samplePoints(int numPoints, HalfEdgeMesh* mesh) {
 }
 
 // from QEM paper: d(v, M) = min p ∈ M ‖v − p‖ is the minimum distance from v to the closest face of M
-float minDistance(Vector3f v, HalfEdgeMesh* mesh) {
+float MeshEnv::minDistance(Vector3f v, HalfEdgeMesh* mesh) {
     float minDist = numeric_limits<float>::max();
     for (auto it=mesh->vertexMap.begin(); it != mesh->vertexMap.end(); ++it) {
         Vector3f v_ = it->second->vertex3f;
@@ -37,24 +37,26 @@ float minDistance(Vector3f v, HalfEdgeMesh* mesh) {
     return minDist;
 }
 
-float approximationError(HalfEdgeMesh* originalMesh, HalfEdgeMesh* simplifiedMesh) {
+float MeshEnv::approximationError(HalfEdgeMesh* originalMesh, HalfEdgeMesh* simplifiedMesh) {
     // notation from QEM paper https://www.cs.cmu.edu/~./garland/Papers/quadrics.pdf
     HalfEdgeMesh* Mn = originalMesh;
     HalfEdgeMesh* Mi = simplifiedMesh;
 
-    vector<Vector3f> Xn = samplePoints(200, Mn);
-    vector<Vector3f> Xi = samplePoints(200, Mi);
+//    vector<Vector3f> Xn = samplePoints(maxVertexCount, Mn);
+//    vector<Vector3f> Xi = samplePoints(maxVertexCount, Mi);
 
     float E = 0;
 
-    for (Vector3f& v : Xn) {
+    for (auto& vm : Mn->vertexMap) {
+        Vector3f v = vm.second->vertex3f;
         E += powf(minDistance(v, Mi), 2.f);
     }
 
-    for (Vector3f& v : Xi) {
+    for (auto& vm : Mi->vertexMap) {
+        Vector3f v = vm.second->vertex3f;
         E += powf(minDistance(v, Mn), 2.f);
     }
 
-    E = E / (float) (Xn.size() + Xi.size());
+    E = E / (float) (Mn->vertexMap.size() + Mi->vertexMap.size());
     return E;
 }

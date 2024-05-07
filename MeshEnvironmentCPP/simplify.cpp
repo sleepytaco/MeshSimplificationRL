@@ -180,6 +180,7 @@ float HalfEdgeMesh::greedyQEMStep() {
     return QEMCost;
 }
 
+#include <random>
 float HalfEdgeMesh::randomQEMStep() {
     // run until we reach target num of faces
     float QEMCost = 666;
@@ -187,16 +188,25 @@ float HalfEdgeMesh::randomQEMStep() {
     while (numCollapses<1) {
         // pick random edge ID
         // int rand_num=rand()%99+1; // produces numbers from 1-99
-        int edgeItemNumber = arc4random()%750;
-        while (edgeMap.find(edgeItemNumber) == edgeMap.end()) {
-            edgeItemNumber = arc4random()%750;
-        }
+//        int edgeItemNumber = arc4random()%750;
+//        while (edgeMap.find(edgeItemNumber) == edgeMap.end()) {
+//            edgeItemNumber = arc4random()%750;
+//        }
 
+//        int edgeItemNumber = arc4random()%edgeMap.size();
 //        auto it = edgeMap.begin();
-//        while (edgeItemNumber > 0) {
+//        for (int i=0; i<edgeItemNumber; ++i) {
 //            ++it; // move the edgeMap iterator forward
 //            edgeItemNumber--;
 //        }
+
+        // Seed the random number generator
+        random_device rd;
+        mt19937 g(rd());
+        // Shuffle the elements of the map
+        vector<pair<int, Edge*>> vec(edgeMap.begin(), edgeMap.end());
+        shuffle(vec.begin(), vec.end(), g);
+        int edgeItemNumber = vec[0].first;
 
 //        if (edgeMap.find(edge->id) == edgeMap.end()) // NEED THIS check as edgeCollapse operation deletes some surrounding edges from the edgeMap
 //            continue;

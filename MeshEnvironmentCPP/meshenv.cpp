@@ -6,7 +6,6 @@
 #define TINYOBJLOADER_IMPLEMENTATION
 #include "util/tiny_obj_loader.h"
 #include <cassert>
-#include "errormetric.hpp"
 
 
 MeshEnv::MeshEnv(string meshFilePath, int maxFaceCount,  int maxVertexCount, int maxEdgeCount)
@@ -20,17 +19,24 @@ MeshEnv::MeshEnv(string meshFilePath, int maxFaceCount,  int maxVertexCount, int
 void MeshEnv::printEpisodeStats() {
 
     if (isTraining) cout << (reachedRequiredFaces ? "Reached the required number of faces!" : "Did NOT reach the required number of faces (episode TRUNCATED)") << endl;
-    cout << "maximum reward recived: " << maxRewardGiven << endl;
-    cout << "total episode rewards sum: " << episodeRewards << endl;
-    cout << "total episode QEM rewards sum: " << episodeQEMRewards << endl;
     cout << "total episode steps: " << numCollapses + numNonManifoldCollapses + numDeletedEdgeCollapses + numDNEEdgeCollapses << endl;
+
+    // print various rewards sum during episodes
+    cout << "TOTAL episode rewards sum: " << episodeRewards << endl; // includes non-manifold cost + (one of QEM or approx errors)
+    cout << "QEM rewards sum: " << episodeQEMErrorRewards << " | MAX QEM reward given: " << maxQEMRewardGiven << endl;
+    if (episodeApproxErrorRewards > 0) cout << "APPROX ERROR rewards sum: " << episodeApproxErrorRewards << " | MAX APPROX ERROR: " << maxApproximationError << endl;
+
+
+    // print edge collapse related stats
     cout << "total valid edge collapses: " << numCollapses << endl;
     cout << "total non-manifold edge collapses: " << numNonManifoldCollapses << endl;
-    cout << "total deleted edge collapses: " << numDeletedEdgeCollapses << endl;
-    cout << "total does not exist edge collapses: " << numDNEEdgeCollapses << endl;
-    cout << "face count before reset: " << halfEdgeMesh->faceMap.size() << endl;
-    cout << "vertices count before reset: " << halfEdgeMesh->vertexMap.size() << endl;
-    cout << "edge count before reset: " << halfEdgeMesh->edgeMap.size() << endl;
+    if (numDeletedEdgeCollapses > 0) cout << "total deleted edge collapses: " << numDeletedEdgeCollapses << endl;
+    if (numDNEEdgeCollapses > 0) cout << "total does not exist edge collapses: " << numDNEEdgeCollapses << endl;
+
+    // mostly for debugging to see if edge collapses are happening
+//    cout << "face count before reset: " << halfEdgeMesh->faceMap.size() << endl;
+//    cout << "vertices count before reset: " << halfEdgeMesh->vertexMap.size() << endl;
+//    cout << "edge count before reset: " << halfEdgeMesh->edgeMap.size() << endl;
 }
 
 void MeshEnv::saveEpisodeStats(json& j) {
@@ -38,8 +44,6 @@ void MeshEnv::saveEpisodeStats(json& j) {
     cout << "Saving episode stats in info dict..." << endl;
     j["hasInfo"] = true;
     j["reachedRequiredFaces"] = reachedRequiredFaces;
-    j["maxRLQEMRewardGiven"] = maxRewardGiven;
-    j["totalEpisodeRewards"] = episodeRewards;
     j["totalEpisodeSteps"] = numCollapses + numNonManifoldCollapses + numDeletedEdgeCollapses + numDNEEdgeCollapses;
     j["totalValidEdgeCollapses"] = numCollapses;
     j["totalNonManifoldEdgeCollapses"] = numNonManifoldCollapses;
@@ -49,14 +53,18 @@ void MeshEnv::saveEpisodeStats(json& j) {
     j["vertexCountBeforeReset"] = halfEdgeMesh->vertexMap.size();
     j["edgeCountBeforeReset"] = halfEdgeMesh->edgeMap.size();
 
+    // reset episode reward stats
+    j["episodeRewards"] = episodeRewards; // total episode rewards
+    j["episodeQEMErrorRewards"] = episodeQEMErrorRewards;
+    j["episodeApproxErrorRewards"] = episodeApproxErrorRewards;
+    j["maxQEMRewardGiven"] = maxQEMRewardGiven;
+    j["maxApproximationError"] = maxApproximationError;
+
     if (!isTraining) {
         j["randomQEMCostsList"] = randomQEMCosts;
         j["greedyQEMCostsList"] = greedyQEMCosts;
         j["agentQEMCostsList"] = agentQEMCosts;
     }
-
-    // j["agentQEMCostMean"] = agentQEMCostSum / agentQEMCosts;
-    j["episodeQEMRewardsSum"] = episodeQEMRewards;
 }
 
 void MeshEnv::reset() {
@@ -66,31 +74,55 @@ void MeshEnv::reset() {
         printEpisodeStats();
     }
     cout << endl;
+
     initMeshEnv(); // reset mesh by loading it again
-    maxRewardGiven = 0;
-    episodeRewards = 0;
+
+//    cout << "APPROX ERRORS BETWEEN MESHES" << endl;
+//    cout << approximationError(originalMesh, originalMesh) << endl;
+//    float maxQEM = -6969;
+//    for (int i=0; i<150; ++i)  {
+//        float QEM = halfEdgeMesh->randomQEMStep() * 10;
+////        cout << "iteration " << i << ": ";
+////        cout << "QEM loss - " << QEM << " | ";
+////        cout << "approximation loss - " << approximationError(originalMesh, halfEdgeMesh) * 1000;
+//        maxQEM = fmax(QEM, maxQEM);
+//        // cout << endl;
+//    }
+//    cout << "MAX QEM: " << maxQEM << endl;
+//    cout << "---------------------------" << endl;
+
+    // reset episode edge collapse stats
     numCollapses = 0;
     numNonManifoldCollapses = 0;
     numDeletedEdgeCollapses = 0;
     numDNEEdgeCollapses = 0;
     reachedRequiredFaces = false;
+
+    // reset episode reward stats
+    episodeRewards = 0; // total episode rewards
+    episodeQEMErrorRewards = 0;
+    episodeApproxErrorRewards = 0;
+    maxQEMRewardGiven = 0;
+    maxApproximationError = 0;
     agentQEMCosts.clear();
     greedyQEMCosts.clear();
     randomQEMCosts.clear();
-    episodeQEMRewards = 0;
-//    cout << "faces: " << halfEdgeMesh->faceMap.size() << endl;
-//    cout << "vertices: " << halfEdgeMesh->vertexMap.size() << endl;
-//    cout << "edges: " << halfEdgeMesh->edgeMap.size() << endl;
+
     cout << "------------------------" << endl;
 }
 
 void MeshEnv::initMeshEnv() {
 
     assert(meshFilePath != "" && "Mesh filepath not set!");
-    loadFromFile(); // sets up halfedge datastruct for the specified mesh file path during meshenv initialization
-    halfEdgeMesh->initQEMCosts(); // calcs up QEM cost of each edge in the mesh
-    halfEdgeMeshGreedy->initQEMCosts(true); // calcs up QEM cost of each edge in the mesh
-    halfEdgeMeshRandom->initQEMCosts();
+    loadFromFile(); // sets up halfedge datastruct for the specified mesh file path during meshenv
+
+    // moved to loadFromFile() ---> inside buildHalfEdgeMesh()
+//    halfEdgeMesh->initQEMCosts(); // calcs up QEM cost of each edge in the mesh
+//    halfEdgeMeshGreedy->initQEMCosts(true); // calcs up QEM cost of each edge in the mesh
+//    halfEdgeMeshRandom->initQEMCosts();
+
+    // might not need this here, as this is called in getState everytime anyway
+    // if (envVersion == 2) halfEdgeMesh->computeEdgeFeatures();
 
     initialEdgeCount = halfEdgeMesh->edgeMap.size();
     assert(halfEdgeMesh->edgeMap.size() <= maxEdgeCount && "num of edges in input mesh > maxEdgeCount");
@@ -98,7 +130,7 @@ void MeshEnv::initMeshEnv() {
     assert(halfEdgeMesh->vertexMap.size() <= maxVertexCount && "num of vertices in input mesh > maxVertexCount");
 
     // meshState.clear();
-    if (meshState.size() == 0) {
+    if (envVersion == 1 && meshState.size() == 0) { // only reserve meshState if env version is 1
         int meshStateSize = maxVertexCount + maxFaceCount; // halfEdgeMesh->vertexMap.size() + halfEdgeMesh->faceMap.size();
         meshState.reserve(meshStateSize);
         for (int i=0; i<meshStateSize; ++i) {
@@ -107,7 +139,11 @@ void MeshEnv::initMeshEnv() {
     }
 }
 
+
+// this is for env V1 where the state space is (numV + numF) x 3
 vector<vector<float>>& MeshEnv::getState() {
+
+    if (envVersion != 1) return meshState;
 
     // cout << meshState.size() << endl; cout << initialVertexCount<< endl; cout << initialFaceCount<< endl;
     for (int j=0; j<maxFaceCount; ++j) {
@@ -134,7 +170,11 @@ vector<vector<float>>& MeshEnv::getState() {
     return meshState;
 }
 
+// this is for env V1 where the state space is (numV + numF) x 3 and action space is an integer id in range 0-749
 pair<float, bool> MeshEnv::step(int action) {
+
+    if (envVersion != 1) return {0, 0};
+
     // here action == edgeId
     int edgeId = action;
     float reward = 0;
@@ -157,44 +197,44 @@ pair<float, bool> MeshEnv::step(int action) {
         int errorCode = res.first;
         if (errorCode == 2) {
             // reward += -100; // turns out i NEED this, else the agent picks it
-            reward += -11;
+            reward += -21;
             numDeletedEdgeCollapses ++;
             if (printSteps)  cout << "--- edge id " << action << " does not exist (was deleted)" << endl;
         } else if (errorCode == 3) {
             // reward += -50;
-            reward += -10;
+            reward += -20;
             numNonManifoldCollapses ++;
             if (printSteps)  cout << "--- edge id " << action << " was not collapsed due to breaking manifoldness" << endl;
         } else {
             float scale = 1000.f;
 
-            // float QEMreward = -res.second;
-            // reward += QEMreward; // since RL tries to maximize the sum of rewards
-
-            float approxError = approximationError(originalMesh, halfEdgeMesh);
-            reward += -approxError * scale;
-
-            maxRewardGiven = fmax(approxError * scale, maxRewardGiven);
-
             numCollapses ++;
             if (printSteps)  cout << "removed edge id " << action << endl;
 
-            episodeQEMRewards += reward;
+            float QEMreward = res.second * 10;
+            float approxError = approximationError(originalMesh, halfEdgeMesh) * 1000;
+
+            // some stats
+            episodeQEMErrorRewards += QEMreward;
+            episodeApproxErrorRewards += approxError;
+            maxQEMRewardGiven = fmax(QEMreward, maxQEMRewardGiven);
+            maxApproximationError = fmax(approxError, maxApproximationError);
+
+            reward = -QEMreward; // since RL tries to maximize the sum of rewards
 
             // store QEM costs collected
             if (!isTraining)
             {
-//                agentQEMCosts.push_back(res.second*scale);
-//                greedyQEMCosts.push_back(halfEdgeMeshGreedy->greedyQEMStep()*scale);
-//                randomQEMCosts.push_back(halfEdgeMeshRandom->randomQEMStep()*scale);
+                scale = 100.f;
+                agentQEMCosts.push_back(res.second*scale);
+                greedyQEMCosts.push_back(halfEdgeMeshGreedy->greedyQEMStep()*scale);
+                randomQEMCosts.push_back(halfEdgeMeshRandom->randomQEMStep()*scale);
 
-                halfEdgeMeshGreedy->greedyQEMStep();
-                halfEdgeMeshRandom->randomQEMStep();
-
-
-                agentQEMCosts.push_back(approxError *scale);
-                greedyQEMCosts.push_back(approximationError(originalMesh, halfEdgeMeshGreedy) *scale);
-                randomQEMCosts.push_back(approximationError(originalMesh, halfEdgeMeshRandom) *scale);
+//                halfEdgeMeshGreedy->greedyQEMStep();
+//                halfEdgeMeshRandom->randomQEMStep();
+//                agentQEMCosts.push_back(approxError *scale);
+//                greedyQEMCosts.push_back(approximationError(originalMesh, halfEdgeMeshGreedy) *scale);
+//                randomQEMCosts.push_back(approximationError(originalMesh, halfEdgeMeshRandom) *scale);
 
 //                cout << "Difference from original mesh vs RL mesh: " << approximationError(originalMesh, halfEdgeMesh) << endl;
 //                cout << "Difference from original mesh vs Greedy mesh: " << approximationError(originalMesh, halfEdgeMeshGreedy) << endl;
@@ -246,7 +286,7 @@ void MeshEnv::loadFromFile() {
     // "/Users/mohammedk/Documents/Brown/CS2951F/Final Project/MeshSimplificationRL/meshenv/meshes/bunny.obj"
     bool ret = tinyobj::LoadObj(&attrib, &shapes, &materials, &err,
                                 meshFilePath.c_str(),
-                                "/Users/mohammedk/Documents/Brown/CS2951F/Final Project/MeshSimplificationRL/meshenv/meshes/", true);
+                                "/Users/mohammedk/Documents/Brown/CS2951F/Final Project/MeshSimplificationRL/AgentV1/meshes/centaur/test", true);
 
     if (!err.empty()) {
         cerr << err << endl;
@@ -284,7 +324,7 @@ void MeshEnv::loadFromFile() {
 //    halfEdgeMesh = new HalfEdgeMesh();
 
     // only build the original mesh once
-    if (originalMesh->vertexMap.size() == 0) {
+    if (!isTraining && originalMesh->vertexMap.size() == 0) {
         cout << "Building original mesh" << endl;
         originalMesh->buildHalfEdgeMesh(_vertices, _faces);
     }

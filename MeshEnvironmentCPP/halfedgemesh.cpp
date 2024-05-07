@@ -124,10 +124,13 @@ void HalfEdgeMesh::buildHalfEdgeMesh(const vector<Vector3f> &vertices, const vec
 
     // im only working with manifold meshes for this proj
     // bool temp = runValidator;
-    // runValidator = true; // force run validation when halfedge mesh created for the first time
+    //runValidator = true; // force run validation when halfedge mesh created for the first time
     validateMesh();
-    // runValidator = temp; // reset to old value
-    if (runValidator) cout << "Successfully validated initially built half-edge mesh." << endl;
+    //if (runValidator) cout << "Successfully validated initially built half-edge mesh." << endl;
+    //runValidator = false; // reset to old value
+
+    initQEMCosts(); // computes and stores the QEM costs for each edge
+    // computeEdgeFeatures(); // computes and stores the 5-d feature vector for each edge
 }
 
 void HalfEdgeMesh::cleanUpHalfEdgeMesh() {
