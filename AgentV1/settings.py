@@ -1,5 +1,5 @@
 # mesh cnn meshes config (med sized meshes)
-ROOT_DIR = "/"
+ROOT_DIR = ""
 BASE_MESH_DIR = "../MeshCNN/datasets/shrec_16/"
 MESH_NAME = "armadillo/train/T54.obj"
 MAX_FACE_COUNT = 500 # 200

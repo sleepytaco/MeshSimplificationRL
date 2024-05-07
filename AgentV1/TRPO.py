@@ -27,14 +27,15 @@ if isTraining:
 
     start_time = time.time()
 
-    timesteps = int(1e6)  # 200_000
+    timesteps = int(1e6)  # 1_000_000
     if usedSavedModelForTraining:
-        model = TRPO.load("trpo_mesh_simplify_10M", env=env, verbose=2)
+        print("using saved model")
+        model = TRPO.load("trpo_mesh_simplify_11M", env=env, verbose=2)
     else:
         model = TRPO("MlpPolicy", env, verbose=2)
 
     model.learn(total_timesteps=timesteps, progress_bar=True)
-    model.save("trpo_mesh_simplify_11M")
+    model.save("trpo_mesh_simplify_12M")
 
     # policy = model.policy
     # mean_reward, std_reward = evaluate_policy(policy, env, n_eval_episodes=10, deterministic=True)
@@ -45,10 +46,11 @@ if isTraining:
     print(f"Time taken to train for {timesteps} timesteps:", round(execution_time / 60, 2), "mins")
     # stats time taken:
     # n = 200,000 env steps --- 10.5 mins
+    # n = 2,000,000 env steps --- 71.5 mins
     # n = 10,000,000 env steps --- 12.5 hrs lol
 else:
     print("Testing...")
-    model = TRPO.load("trpo_mesh_simplify_11M")
+    model = TRPO.load("trpo_mesh_simplify_12M")
     start_time = time.time()
 
     mesh_path = "meshes/T156.obj"  # "meshes/camel/test/T536.obj"

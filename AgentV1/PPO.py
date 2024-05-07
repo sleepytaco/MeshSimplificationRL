@@ -3,6 +3,7 @@
 import os
 
 import numpy as np
+import torch
 from stable_baselines3 import PPO
 from AgentV1.custom_env import MeshEnv
 import time
@@ -10,14 +11,14 @@ from stable_baselines3.common.env_checker import check_env
 import torch.nn as nn
 
 final_face_count = 150
-isTraining = False
+isTraining = True
 usedSavedModelForTraining = True
 
 timesteps = 1_000_000
 policy_kwargs = dict(activation_fn=nn.ReLU,
                      net_arch=dict(pi=[128, 128], vf=[128, 128]))
-gamma = 0.99
 verbose = 2
+gamma = 1  # default 0.99
 
 # TODO: use custom feature extractor class in PPO -- use MESHCNN (https://stable-baselines3.readthedocs.io/en/master/guide/custom_policy.html#custom-feature-extractor)
 # TODO: use callbacks to log training stats https://stable-baselines3.readthedocs.io/en/master/guide/examples.html
@@ -32,13 +33,14 @@ if isTraining:
     start_time = time.time()
 
     if usedSavedModelForTraining:
-        print("Using saved model...")
-        model = PPO.load(f"ppo_mesh_simplify_10M", env=env, policy_kwargs=policy_kwargs, verbose=verbose)
+        model_zip = "ppo_mesh_simplify_13M"
+        print("Using saved model...", model_zip)
+        model = PPO.load(model_zip, env=env, policy_kwargs=policy_kwargs, verbose=verbose, gamma=gamma)
     else:
         model = PPO(policy="MlpPolicy", env=env, policy_kwargs=policy_kwargs)
 
     model.learn(total_timesteps=timesteps, progress_bar=True)
-    model.save(f"ppo_mesh_simplify_11M")
+    model.save(f"ppo_mesh_simplify_14M")
 
     env.close()
 
@@ -60,11 +62,30 @@ else:
 
     mesh_file = "/Users/mohammedk/Documents/Brown/CS2951F/MeshSimplificationRL/AgentV1/meshes/centaur/test/T156.obj"
     env = MeshEnv(mesh_files=[mesh_file], final_face_count=final_face_count, training=isTraining)
-    model = PPO.load(f"ppo_mesh_simplify_10M", policy="MlpPolicy", policy_kwargs=policy_kwargs, gamma=gamma)
+    model = PPO.load(f"ppo_mesh_simplify_14M", policy="MlpPolicy", policy_kwargs=policy_kwargs)
 
     obs, info = env.reset()
+    print(info)
     while True:
+
         action, _states = model.predict(obs)
+        # print("-----")
+        # print("sb3 action:", action)
+        # obs = torch.tensor(obs).reshape((1, -1))
+        #
+        # dis = model.policy.get_distribution(obs)
+        # probs = dis.distribution.probs.detach().numpy().reshape((-1))
+        # print("argmax action", np.argmax(probs))
+        # valid_edge_ids = info["validEdgeIds"]
+        # # print(valid_edge_ids)
+        # clipped_arr = probs[valid_edge_ids]
+        # probs = clipped_arr / np.sum(clipped_arr)
+        # #print(len(probs))
+        #
+        # sample_action = np.random.choice(len(probs), p=probs)
+        # action = valid_edge_ids[sample_action]
+        # print("sampled action", action)
+
         obs, rewards, done, trunc, info = env.step(action)
         if done:
             break

@@ -10,7 +10,7 @@ num_test_steps = (500 - final_face_count) // 2
 
 mesh_file = "/Users/mohammedk/Documents/Brown/CS2951F/MeshSimplificationRL/AgentV1/meshes/centaur/test/T156.obj"
 env = MeshEnv(mesh_files=[mesh_file], final_face_count=final_face_count, training=False)
-model = TRPO.load(f"trpo_mesh_simplify_10M")
+model = TRPO.load(f"trpo_mesh_simplify_11M")
 
 agent_QEM_costs = np.zeros((num_tests, num_test_steps))
 greedy_QEM_costs = np.zeros((num_tests, num_test_steps))
