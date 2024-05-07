@@ -45,6 +45,7 @@ void MeshEnv::printEpisodeStats() {
     cout << "TOTAL episode rewards sum: " << episodeRewards << endl; // includes non-manifold cost + (one of QEM or approx errors)
     cout << "QEM rewards sum: " << episodeQEMErrorRewards << " | MAX QEM reward given: " << maxQEMRewardGiven << endl;
     if (episodeApproxErrorRewards > 0) cout << "APPROX ERROR rewards sum: " << episodeApproxErrorRewards << " | MAX APPROX ERROR: " << maxApproximationError << endl;
+    cout << "MAX non-manifold collapse QEM error: " << maxNonManifoldQEMReward << " | MIN AGENT DIST FROM MESH: " << minAgentDistFromMesh << endl;
 
 
     // print edge collapse related stats
@@ -79,6 +80,8 @@ void MeshEnv::saveEpisodeStats(json& j) {
     j["episodeApproxErrorRewards"] = episodeApproxErrorRewards;
     j["maxQEMRewardGiven"] = maxQEMRewardGiven;
     j["maxApproximationError"] = maxApproximationError;
+    j["maxNonManifoldQEMReward"] = maxNonManifoldQEMReward;
+    j["minAgentDistFromMesh"] = minAgentDistFromMesh;
 
     if (!isTraining) {
         j["randomQEMCostsList"] = randomQEMCosts;
@@ -122,8 +125,10 @@ void MeshEnv::reset() {
     episodeRewards = 0; // total episode rewards
     episodeQEMErrorRewards = 0;
     episodeApproxErrorRewards = 0;
-    maxQEMRewardGiven = 0;
-    maxApproximationError = 0;
+    maxQEMRewardGiven = numeric_limits<float>::min();
+    maxApproximationError = numeric_limits<float>::min();
+    maxNonManifoldQEMReward = numeric_limits<float>::min();
+    minAgentDistFromMesh = numeric_limits<float>::max();
     agentQEMCosts.clear();
     greedyQEMCosts.clear();
     randomQEMCosts.clear();
@@ -344,13 +349,13 @@ void MeshEnv::loadFromFile() {
 //    halfEdgeMesh = new HalfEdgeMesh();
 
     // only build the original mesh once
-    if (!isTraining && originalMesh->vertexMap.size() == 0) {
+    if (originalMesh->vertexMap.size() == 0) {
         cout << "Building original mesh" << endl;
         originalMesh->buildHalfEdgeMesh(_vertices, _faces);
     }
 
     halfEdgeMesh->buildHalfEdgeMesh(_vertices, _faces);
-    if (!isTraining) halfEdgeMeshGreedy->buildHalfEdgeMesh(_vertices, _faces);
+    halfEdgeMeshGreedy->buildHalfEdgeMesh(_vertices, _faces);
     if (!isTraining) halfEdgeMeshRandom->buildHalfEdgeMesh(_vertices, _faces);
 }
 

@@ -121,7 +121,7 @@ pair<int, float> HalfEdgeMesh::removeEdge(int edgeId) {
     Vector3f edgeMP = (v0->vertex3f + v1->vertex3f) / 2.f;
     Vertex* collapsedVertex = edgeCollapse(edge, edgeMP); // returns vertex to which the edge was collapsed to
     if (collapsedVertex == nullptr) // if null, then the edge was not collapsed by edgeCollapse func due to violating manifoldness
-        return {3, -1};
+        return {3, edgeQEMCost};
 
     // set quadric at new vertex to Qij
     Matrix4f Qij = edgeQij;

@@ -103,8 +103,10 @@ private:
     float episodeRewards = 0; // total episode rewards
     float episodeQEMErrorRewards = 0;
     float episodeApproxErrorRewards = 0;
-    float maxQEMRewardGiven = 0;
-    float maxApproximationError = 0;
+    float maxQEMRewardGiven = -1*numeric_limits<float>::min();
+    float maxApproximationError = -1*numeric_limits<float>::min();
+    float maxNonManifoldQEMReward = -1*numeric_limits<float>::min();
+    float minAgentDistFromMesh = numeric_limits<float>::max();
     vector<float> agentQEMCosts;
     vector<float> greedyQEMCosts; // deterministic greedy QEM agent
     vector<float> randomQEMCosts; // random agent

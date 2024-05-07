@@ -76,7 +76,10 @@ pair<float, bool> MeshEnv::stepV2(Vector3f xyz) {
 
     int action = edgeId;
 
-    // reward -= minDist; // penalize if the agent's "point" is far from the closest mesh vertex...?
+    reward += -minDist; // penalize if the agent's "point" is far from the closest mesh vertex...?
+    minAgentDistFromMesh = fmin(minAgentDistFromMesh, minDist);
+
+    // cout << "minDist: " << minDist << endl;
 
     /*
      * halfEdgeMesh->removeEdge(edgeId) returns <error code, QEM cost for that edge collapse>
@@ -101,11 +104,15 @@ pair<float, bool> MeshEnv::stepV2(Vector3f xyz) {
         // the agent does not really leanrn it fully within that.
         // non-manifoldness related collapses could also have smallest QEM rewards for a state! it the agent picks it we can simply ignore, much as the original QEM paper
         // reward += -20;
+        float nonManifoldReward = res.second;
+        float penalty = -nonManifoldReward;
+        float rewardGiven = -nonManifoldReward + penalty;
 
-         reward += -res.second*2; // double penelty for non-manifold-ness?
-         // reward += -500;
-         // isTerminal = true; // try this with TD3 too lol
+        // maxNonManifoldQEMReward = max(maxNonManifoldQEMReward, nonManifoldReward);
+        reward += rewardGiven; // only smol non-manifold-ness?
+        maxNonManifoldQEMReward = fmax(maxNonManifoldQEMReward, -rewardGiven);
         numNonManifoldCollapses ++;
+
         if (printSteps)  cout << "--- edge id " << action << " was not collapsed due to breaking manifoldness" << endl;
     } else {
 
@@ -113,33 +120,35 @@ pair<float, bool> MeshEnv::stepV2(Vector3f xyz) {
         if (printSteps)  cout << "removed edge id " << action << endl;
 
         float QEMreward = res.second; // 1 * 10;
-        // float approxError = approximationError(originalMesh, halfEdgeMesh) * 1000;
 
         // some stats
         episodeQEMErrorRewards += QEMreward;
         maxQEMRewardGiven = fmax(QEMreward, maxQEMRewardGiven);
 
-//        originalMesh->greedyQEMStep();
-//        float idealApproxError = approximationError(originalMesh, halfEdgeMesh);
-//        episodeApproxErrorRewards += idealApproxError;
-//        maxApproximationError = fmax(idealApproxError, maxApproximationError);
+        // halfEdgeMeshGreedy->greedyQEMStep();
+        // float idealApproxError = approximationError(halfEdgeMeshGreedy, halfEdgeMesh); // compare RL agent's mesh and Greedy QEM agent's mesh energy
+        float approxError = approximationError(originalMesh, halfEdgeMesh) * 100;
+        episodeApproxErrorRewards += approxError;
+        maxApproximationError = fmax(approxError, maxApproximationError);
 
-        reward += -QEMreward; // -idealApproxError; // -approxError; // since RL tries to maximize the sum of rewards
+        reward += -QEMreward -approxError; // -idealApproxError; // -approxError; // since RL tries to maximize the sum of rewards
 
 
         // store QEM costs collected
         if (!isTraining)
         {
-            float scale = 10.f;
-            agentQEMCosts.push_back(res.second*scale);
-            greedyQEMCosts.push_back(halfEdgeMeshGreedy->greedyQEMStep()*scale);
-            randomQEMCosts.push_back(halfEdgeMeshRandom->randomQEMStep()*scale);
+            float scale = 1000.f;
+            float approxError = approximationError(originalMesh, halfEdgeMesh) * scale;
 
-//            halfEdgeMeshGreedy->greedyQEMStep();
-//            halfEdgeMeshRandom->randomQEMStep();
-//            agentQEMCosts.push_back(approxError *scale);
-//            greedyQEMCosts.push_back(approximationError(originalMesh, halfEdgeMeshGreedy) *scale);
-//            randomQEMCosts.push_back(approximationError(originalMesh, halfEdgeMeshRandom) *scale);
+//            agentQEMCosts.push_back(res.second*scale);
+//            greedyQEMCosts.push_back(halfEdgeMeshGreedy->greedyQEMStep()*scale);
+//            randomQEMCosts.push_back(halfEdgeMeshRandom->randomQEMStep()*scale);
+
+            halfEdgeMeshGreedy->greedyQEMStep();
+            halfEdgeMeshRandom->randomQEMStep();
+            agentQEMCosts.push_back(approxError *scale);
+            greedyQEMCosts.push_back(approximationError(originalMesh, halfEdgeMeshGreedy) *scale);
+            randomQEMCosts.push_back(approximationError(originalMesh, halfEdgeMeshRandom) *scale);
         }
     }
 
