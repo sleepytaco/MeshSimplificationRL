@@ -84,17 +84,7 @@ public:
     void resetV2();
     vector<vector<float>>& getStateV2();
     pair<float, bool> stepV2(Vector3f xyz);
-    void setVersion(int v) {
-        envVersion = v;
-        if (v == 2) {
-            emptyVal = 0;
-            int meshStateSize = 750; // maxEdgeCount; // halfEdgeMesh->vertexMap.size() + halfEdgeMesh->faceMap.size();
-            meshStateV2.reserve(meshStateSize);
-            for (int i=0; i<meshStateSize; ++i) {
-                meshStateV2.push_back({emptyVal, emptyVal, emptyVal}); // add empty rows
-            }
-        }
-    }
+    void setVersion(int v);
 
     // utils
     vector<Vector3f> samplePoints(int numPoints, HalfEdgeMesh* mesh);

@@ -1,17 +1,50 @@
 #include "meshenv.h"
 
 vector<vector<float>>& MeshEnv::getStateV2() {
-    if (envVersion == 2) halfEdgeMesh->computeEdgeFeatures();
 
+    // ------------ This is with the edge features as state space (size num_edges x 5)
+    if (envVersion == 2) halfEdgeMesh->computeEdgeFeatures();
     int row = 0;
     for (auto it=halfEdgeMesh->edgeMap.begin(); it != halfEdgeMesh->edgeMap.end(); ++it) {
         meshStateV2[row++] = it->second->edgeFeatures;
     }
 
-    emptyVal = 0;
+    emptyVal = -1; // using -1 instead of 0 made LOT of difference
     while (row != maxEdgeCount) {
         meshStateV2[row++] = {emptyVal, emptyVal, emptyVal, emptyVal, emptyVal};
     }
+    // ------------------------------------------------------------------------------
+
+
+    // ------------- This is with the list of vertices +  faces as the state (752 x 3)
+
+    // cout << meshState.size() << endl; cout << initialVertexCount<< endl; cout << initialFaceCount<< endl;
+//    int stateSpaceSize = maxVertexCount + maxFaceCount;
+
+//    int row = 0;
+//    for (int j=0; j<maxVertexCount; ++j) {
+//        if (!halfEdgeMesh->vertexMap.contains(j)) {
+//            continue;
+//        }
+//        Vertex* v = halfEdgeMesh->vertexMap[j];
+//        Vector3f v3f = v->vertex3f;
+//        meshStateV2[row++] = {v3f[0], v3f[1], v3f[2]};
+//    }
+
+//    for (int j=0; j<maxFaceCount; ++j) {
+//        if (!halfEdgeMesh->faceMap.contains(j)) {
+//            continue;
+//        }
+//        Face* f = halfEdgeMesh->faceMap[j];
+//        Vector3i f3i = halfEdgeMesh->getVertexIdsFromFace(f);
+//        meshStateV2[row++] = {(float)f3i[0], (float)f3i[1], (float)f3i[2]};
+//    }
+
+//    while (row < stateSpaceSize) {
+//        meshStateV2[row++] = {emptyVal, emptyVal, emptyVal};
+//    }
+
+    // -------------------------------------------------------------------------------
 
     return meshStateV2;
 }
@@ -43,6 +76,8 @@ pair<float, bool> MeshEnv::stepV2(Vector3f xyz) {
 
     int action = edgeId;
 
+    // reward -= minDist; // penalize if the agent's "point" is far from the closest mesh vertex...?
+
     /*
      * halfEdgeMesh->removeEdge(edgeId) returns <error code, QEM cost for that edge collapse>
      * possible error codes:
@@ -60,8 +95,14 @@ pair<float, bool> MeshEnv::stepV2(Vector3f xyz) {
         numDeletedEdgeCollapses ++;
         if (printSteps)  cout << "--- edge id " << action << " does not exist (was deleted)" << endl;
     } else if (errorCode == 3) {
-        // reward += -50;
-         reward += -100;
+        // reward += -50; // bad
+
+        // giving small penality reward for breaking manifoldess helps a lOT as well, becoz i only train it for <10M max
+        // the agent does not really leanrn it fully within that.
+        // non-manifoldness related collapses could also have smallest QEM rewards for a state! it the agent picks it we can simply ignore, much as the original QEM paper
+        // reward += -20;
+
+         reward += -res.second*2; // double penelty for non-manifold-ness?
          // reward += -500;
          // isTerminal = true; // try this with TD3 too lol
         numNonManifoldCollapses ++;
@@ -71,7 +112,7 @@ pair<float, bool> MeshEnv::stepV2(Vector3f xyz) {
         numCollapses ++;
         if (printSteps)  cout << "removed edge id " << action << endl;
 
-        float QEMreward = res.second * 10;
+        float QEMreward = res.second; // 1 * 10;
         // float approxError = approximationError(originalMesh, halfEdgeMesh) * 1000;
 
         // some stats
@@ -108,7 +149,7 @@ pair<float, bool> MeshEnv::stepV2(Vector3f xyz) {
     // - the number of faces in the current state is less than equal to what the user wants in the simplified mesh result
     // - (only during training) truncate if the total number of actions/steps (i.e. edge collapses taken is greater than the maxSteps
     int totalCollapses = numCollapses + numNonManifoldCollapses + numDeletedEdgeCollapses + numDNEEdgeCollapses;
-    maxSteps = (int) ((maxFaceCount - finalFaceCount) / 2) + 50;
+    maxSteps = 767; // (int) ((maxFaceCount - finalFaceCount) / 2) + 50;
     // if (totalCollapses > 150) reward += -10;
     if (totalCollapses > maxSteps) {
         // reward += -200;

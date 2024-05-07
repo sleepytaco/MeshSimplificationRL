@@ -16,6 +16,26 @@ MeshEnv::MeshEnv(string meshFilePath, int maxFaceCount,  int maxVertexCount, int
     halfEdgeMeshRandom = new HalfEdgeMesh();
 }
 
+void MeshEnv::setVersion(int v) {
+    envVersion = v;
+    if (v == 2) {
+        meshStateV2.clear();
+        emptyVal = -1;
+        int meshStateSize = maxEdgeCount; // maxVertexCount + maxFaceCount; // maxEdgeCount; // halfEdgeMesh->vertexMap.size() + halfEdgeMesh->faceMap.size();
+        meshStateV2.reserve(meshStateSize);
+        for (int i=0; i<meshStateSize; ++i) {
+            meshStateV2.push_back({emptyVal, emptyVal, emptyVal, emptyVal, emptyVal}); // add empty rows
+        }
+    } else {
+        meshState.clear();
+        int meshStateSize = maxVertexCount + maxFaceCount; // halfEdgeMesh->vertexMap.size() + halfEdgeMesh->faceMap.size();
+        meshState.reserve(meshStateSize);
+        for (int i=0; i<meshStateSize; ++i) {
+            meshState.push_back({emptyVal, emptyVal, emptyVal}); // add empty rows
+        }
+    }
+}
+
 void MeshEnv::printEpisodeStats() {
 
     if (isTraining) cout << (reachedRequiredFaces ? "Reached the required number of faces!" : "Did NOT reach the required number of faces (episode TRUNCATED)") << endl;
@@ -225,7 +245,7 @@ pair<float, bool> MeshEnv::step(int action) {
             // store QEM costs collected
             if (!isTraining)
             {
-                scale = 100.f;
+                scale = 10.f;
                 agentQEMCosts.push_back(res.second*scale);
                 greedyQEMCosts.push_back(halfEdgeMeshGreedy->greedyQEMStep()*scale);
                 randomQEMCosts.push_back(halfEdgeMeshRandom->randomQEMStep()*scale);
