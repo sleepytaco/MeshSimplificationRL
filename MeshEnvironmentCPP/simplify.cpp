@@ -120,8 +120,9 @@ pair<int, float> HalfEdgeMesh::removeEdge(int edgeId) {
     Vertex* v1 = edge->he->twin->vertex;
     Vector3f edgeMP = (v0->vertex3f + v1->vertex3f) / 2.f;
     Vertex* collapsedVertex = edgeCollapse(edge, edgeMP); // returns vertex to which the edge was collapsed to
-    if (collapsedVertex == nullptr) // if null, then the edge was not collapsed by edgeCollapse func due to violating manifoldness
+    if (collapsedVertex == nullptr) { // if null, then the edge was not collapsed by edgeCollapse func due to violating manifoldness
         return {3, edgeQEMCost};
+    }
 
     // set quadric at new vertex to Qij
     Matrix4f Qij = edgeQij;
@@ -135,11 +136,15 @@ pair<int, float> HalfEdgeMesh::removeEdge(int edgeId) {
         hptr = hptr->twin->next;
     } while (hptr != collapsedVertex->he);
 
+    QEMCostsPerStep.push_back(edgeQEMCost*10);
+
     return {0, edgeQEMCost};
 
 }
 
 float HalfEdgeMesh::greedyQEMStep() {
+
+    int nonManifoldCollapses = 0;
 
     // run until we reach target num of faces
     float QEMCost = 666;
@@ -151,8 +156,10 @@ float HalfEdgeMesh::greedyQEMStep() {
         Matrix4f edgeQij = edge->Q;
         priorityQueue.erase(priorityQueue.begin());
 
-        if (edgeMap.find(edge->id) == edgeMap.end()) // NEED THIS check as edgeCollapse operation deletes some surrounding edges from the edgeMap
+        if (edgeMap.find(edge->id) == edgeMap.end()) {// NEED THIS check as edgeCollapse operation deletes some surrounding edges from the edgeMap
+            nonManifoldCollapses++;
             continue;
+        }
 
         Vertex* i = edge->he->vertex;
         Vertex* j = edge->he->twin->vertex;
@@ -177,21 +184,24 @@ float HalfEdgeMesh::greedyQEMStep() {
         numCollapses ++;
     }
 
+    QEMCostsPerStep.push_back(QEMCost*10);
+    int prev = (nonManifoldCollapsesPerStep.size() == 0) ? 0 : nonManifoldCollapsesPerStep[nonManifoldCollapsesPerStep.size()-1];
+    nonManifoldCollapsesPerStep.push_back(prev + nonManifoldCollapses);
+
     return QEMCost;
 }
 
 #include <random>
 float HalfEdgeMesh::randomQEMStep() {
-    // run until we reach target num of faces
-    float QEMCost = 666;
-    int numCollapses = 0;
-    while (numCollapses<1) {
-        // pick random edge ID
-        // int rand_num=rand()%99+1; // produces numbers from 1-99
-//        int edgeItemNumber = arc4random()%750;
-//        while (edgeMap.find(edgeItemNumber) == edgeMap.end()) {
-//            edgeItemNumber = arc4random()%750;
-//        }
+
+    int nonManifoldCollapses = 0;
+
+    // pick random edge ID
+//     int rand_num=rand()%99+1; // produces numbers from 1-99
+//    int edgeItemNumber = arc4random()%750;
+//    while (edgeMap.find(edgeItemNumber) == edgeMap.end()) {
+//        edgeItemNumber = arc4random()%750;
+//    }
 
 //        int edgeItemNumber = arc4random()%edgeMap.size();
 //        auto it = edgeMap.begin();
@@ -200,13 +210,21 @@ float HalfEdgeMesh::randomQEMStep() {
 //            edgeItemNumber--;
 //        }
 
-        // Seed the random number generator
-        random_device rd;
-        mt19937 g(rd());
-        // Shuffle the elements of the map
-        vector<pair<int, Edge*>> vec(edgeMap.begin(), edgeMap.end());
-        shuffle(vec.begin(), vec.end(), g);
-        int edgeItemNumber = vec[0].first;
+    // Seed the random number generator
+    random_device rd;
+    mt19937 g(rd());
+    // Shuffle the elements of the map
+    vector<pair<int, Edge*>> vec(edgeMap.begin(), edgeMap.end());
+    shuffle(vec.begin(), vec.end(), g);
+
+
+    // run until we reach target num of faces
+    float QEMCost = 666;
+    int numCollapses = 0;
+    int i=0;
+    while (numCollapses<1) {
+
+        int edgeItemNumber = vec[i++].first;
 
 //        if (edgeMap.find(edge->id) == edgeMap.end()) // NEED THIS check as edgeCollapse operation deletes some surrounding edges from the edgeMap
 //            continue;
@@ -220,8 +238,10 @@ float HalfEdgeMesh::randomQEMStep() {
         Vector3f edgeMP = (i->vertex3f + j->vertex3f) / 2.f;
 
         Vertex* collapsedVertex = edgeCollapse(edge, edgeMP); // returns vertex to which the edge was collapsed to
-        if (collapsedVertex == nullptr) // if null, then the edge was not collapsed by edgeCollapse func due to violating manifoldness
+        if (collapsedVertex == nullptr) { // if null, then the edge was not collapsed by edgeCollapse func due to violating manifoldness
+            nonManifoldCollapses++;
             continue;
+        }
 
         // set quadric at new vertex to Qij
         Matrix4f Qij = edgeQij;
@@ -238,5 +258,8 @@ float HalfEdgeMesh::randomQEMStep() {
         numCollapses ++;
     }
 
+    QEMCostsPerStep.push_back(QEMCost*10);
+    int prev = (nonManifoldCollapsesPerStep.size() == 0) ? 0 : nonManifoldCollapsesPerStep[nonManifoldCollapsesPerStep.size()-1];
+    nonManifoldCollapsesPerStep.push_back(prev + nonManifoldCollapses);
     return QEMCost;
 }

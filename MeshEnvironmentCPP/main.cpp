@@ -45,7 +45,7 @@ int main(int argc, char *argv[]) {
 //    env.initMeshEnv();
     // env.setFinalFaceCount(75);
 
-    int version = 2;
+    int version = 1;
     MeshEnv env;
     env.setVersion(version);
 

@@ -28,6 +28,18 @@ public:
     void printMeshStats();
     void createObjFileVerticesFaces(vector<Vector3f> &vertices, vector<Vector3i> &faces);
 
+    // stats
+    vector<int> nonManifoldCollapsesPerStep;
+    vector<float> QEMCostsPerStep;
+    vector<float> energyApproxErrorsStep;
+
+
+    void resetStats() {
+        nonManifoldCollapsesPerStep.clear();
+        QEMCostsPerStep.clear();
+        energyApproxErrorsStep.clear();
+    };
+
     // utils
     Vector3i getVertexIdsFromFace(Face* f);
     vector<int> getFaceIdsFromVertex(Vertex* v);

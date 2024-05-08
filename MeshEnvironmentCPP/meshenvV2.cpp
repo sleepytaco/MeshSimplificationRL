@@ -105,7 +105,7 @@ pair<float, bool> MeshEnv::stepV2(Vector3f xyz) {
         // non-manifoldness related collapses could also have smallest QEM rewards for a state! it the agent picks it we can simply ignore, much as the original QEM paper
         // reward += -20;
         float nonManifoldReward = res.second;
-        float penalty = -nonManifoldReward;
+        float penalty = 0; -nonManifoldReward;
         float rewardGiven = -nonManifoldReward + penalty;
 
         // maxNonManifoldQEMReward = max(maxNonManifoldQEMReward, nonManifoldReward);
@@ -135,7 +135,7 @@ pair<float, bool> MeshEnv::stepV2(Vector3f xyz) {
 
 
         // store QEM costs collected
-        if (!isTraining)
+        if (!isTraining && false)
         {
             float scale = 1000.f;
             float approxError = approximationError(originalMesh, halfEdgeMesh) * scale;
@@ -146,9 +146,9 @@ pair<float, bool> MeshEnv::stepV2(Vector3f xyz) {
 
             halfEdgeMeshGreedy->greedyQEMStep();
             halfEdgeMeshRandom->randomQEMStep();
-            agentQEMCosts.push_back(approxError *scale);
-            greedyQEMCosts.push_back(approximationError(originalMesh, halfEdgeMeshGreedy) *scale);
-            randomQEMCosts.push_back(approximationError(originalMesh, halfEdgeMeshRandom) *scale);
+//            agentQEMCosts.push_back(approxError *scale);
+//            greedyQEMCosts.push_back(approximationError(originalMesh, halfEdgeMeshGreedy) *scale);
+//            randomQEMCosts.push_back(approximationError(originalMesh, halfEdgeMeshRandom) *scale);
         }
     }
 
@@ -168,6 +168,9 @@ pair<float, bool> MeshEnv::stepV2(Vector3f xyz) {
         // reward = 100;
         isTerminal = true;
         reachedRequiredFaces = true;
+    }
+    if (isTerminal) {
+        reward += (-numNonManifoldCollapses + numCollapses);
     }
 
     episodeRewards += reward;

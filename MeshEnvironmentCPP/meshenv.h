@@ -107,9 +107,10 @@ private:
     float maxApproximationError = -1*numeric_limits<float>::min();
     float maxNonManifoldQEMReward = -1*numeric_limits<float>::min();
     float minAgentDistFromMesh = numeric_limits<float>::max();
-    vector<float> agentQEMCosts;
-    vector<float> greedyQEMCosts; // deterministic greedy QEM agent
-    vector<float> randomQEMCosts; // random agent
+
+//    vector<float> agentApproxErrors;
+//    vector<float> greedyApproxErrors; // deterministic greedy QEM agent
+//    vector<float> randomApproxErrors; // random agent
 
     // episode edge collapse stats
     long long int totalEnvSteps = 0;

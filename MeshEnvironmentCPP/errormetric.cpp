@@ -30,7 +30,7 @@ float MeshEnv::minDistance(Vector3f v, HalfEdgeMesh* mesh) {
     for (auto it=mesh->vertexMap.begin(); it != mesh->vertexMap.end(); ++it) {
         Vector3f v_ = it->second->vertex3f;
 
-        float eucledianDist = sqrt(powf(v_.x() - v.x(), 2.f) + powf(v_.y() - v.y(), 2.f) + powf(v_.z() - v.z(), 2.f));
+        float eucledianDist = (v - v_).norm();
 
         minDist = min(minDist, eucledianDist);
     }
@@ -42,18 +42,20 @@ float MeshEnv::approximationError(HalfEdgeMesh* originalMesh, HalfEdgeMesh* simp
     HalfEdgeMesh* Mn = originalMesh;
     HalfEdgeMesh* Mi = simplifiedMesh;
 
-//    vector<Vector3f> Xn = samplePoints(maxVertexCount, Mn);
-//    vector<Vector3f> Xi = samplePoints(maxVertexCount, Mi);
+    vector<Vector3f> Xn = samplePoints(150, Mn);
+    vector<Vector3f> Xi = samplePoints(150, Mi);
 
     float E = 0;
 
-    for (auto& vm : Mn->vertexMap) {
-        Vector3f v = vm.second->vertex3f;
+//    for (auto& vm : Mn->vertexMap) {
+//        Vector3f v = vm.second->vertex3f;
+    for (Vector3f& v : Xn) {
         E += powf(minDistance(v, Mi), 2.f);
     }
 
-    for (auto& vm : Mi->vertexMap) {
-        Vector3f v = vm.second->vertex3f;
+//    for (auto& vm : Mi->vertexMap) {
+//        Vector3f v = vm.second->vertex3f;
+    for (Vector3f& v : Xi) {
         E += powf(minDistance(v, Mn), 2.f);
     }
 

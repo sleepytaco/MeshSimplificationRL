@@ -84,9 +84,17 @@ void MeshEnv::saveEpisodeStats(json& j) {
     j["minAgentDistFromMesh"] = minAgentDistFromMesh;
 
     if (!isTraining) {
-        j["randomQEMCostsList"] = randomQEMCosts;
-        j["greedyQEMCostsList"] = greedyQEMCosts;
-        j["agentQEMCostsList"] = agentQEMCosts;
+        j["randomQEMCostsList"] = halfEdgeMeshRandom->QEMCostsPerStep;
+        j["greedyQEMCostsList"] = halfEdgeMeshGreedy->QEMCostsPerStep;
+        j["agentQEMCostsList"] = halfEdgeMesh->QEMCostsPerStep;
+
+        j["randomEnergyApproxErrors"] = halfEdgeMeshRandom->energyApproxErrorsStep;
+        j["greedyEnergyApproxErrors"] = halfEdgeMeshGreedy->energyApproxErrorsStep;
+        j["agentEnergyApproxErrors"] = halfEdgeMesh->energyApproxErrorsStep;
+
+        j["randomNonManifoldCollapsesList"] = halfEdgeMeshRandom->nonManifoldCollapsesPerStep;
+        j["greedyNonManifoldCollapsesList"] = halfEdgeMeshGreedy->nonManifoldCollapsesPerStep;
+        j["agentNonManifoldCollapsesList"] = halfEdgeMesh->nonManifoldCollapsesPerStep;
     }
 }
 
@@ -125,13 +133,17 @@ void MeshEnv::reset() {
     episodeRewards = 0; // total episode rewards
     episodeQEMErrorRewards = 0;
     episodeApproxErrorRewards = 0;
-    maxQEMRewardGiven = numeric_limits<float>::min();
-    maxApproximationError = numeric_limits<float>::min();
-    maxNonManifoldQEMReward = numeric_limits<float>::min();
+    maxQEMRewardGiven = -1*numeric_limits<float>::min();
+    maxApproximationError = -1*numeric_limits<float>::min();
+    maxNonManifoldQEMReward = -1*numeric_limits<float>::min();
     minAgentDistFromMesh = numeric_limits<float>::max();
-    agentQEMCosts.clear();
-    greedyQEMCosts.clear();
-    randomQEMCosts.clear();
+//    agentApproxErrors.clear();
+//    greedyQEMCosts.clear();
+//    randomQEMCosts.clear();
+
+    halfEdgeMesh->resetStats();
+    halfEdgeMeshGreedy->resetStats();
+    halfEdgeMeshRandom->resetStats();
 
     cout << "------------------------" << endl;
 }
@@ -222,12 +234,23 @@ pair<float, bool> MeshEnv::step(int action) {
         int errorCode = res.first;
         if (errorCode == 2) {
             // reward += -100; // turns out i NEED this, else the agent picks it
-            reward += -21;
+            // reward += -20; // i added -numDeletedEdgeCollapses to reward at the end of the episode
+            reward += -20;
             numDeletedEdgeCollapses ++;
             if (printSteps)  cout << "--- edge id " << action << " does not exist (was deleted)" << endl;
         } else if (errorCode == 3) {
             // reward += -50;
-            reward += -20;
+//            reward += -20;
+
+            float nonManifoldReward = res.second;
+            float penalty = 0; -nonManifoldReward;
+            float rewardGiven = -nonManifoldReward + penalty;
+
+            // maxNonManifoldQEMReward = max(maxNonManifoldQEMReward, nonManifoldReward);
+            reward += rewardGiven; // only smol non-manifold-ness?
+            reward += -1;
+
+            maxNonManifoldQEMReward = fmax(maxNonManifoldQEMReward, -rewardGiven);
             numNonManifoldCollapses ++;
             if (printSteps)  cout << "--- edge id " << action << " was not collapsed due to breaking manifoldness" << endl;
         } else {
@@ -236,8 +259,8 @@ pair<float, bool> MeshEnv::step(int action) {
             numCollapses ++;
             if (printSteps)  cout << "removed edge id " << action << endl;
 
-            float QEMreward = res.second * 10;
-            float approxError = approximationError(originalMesh, halfEdgeMesh) * 1000;
+            float QEMreward = res.second; // 1 * 10;
+            float approxError = approximationError(originalMesh, halfEdgeMesh);
 
             // some stats
             episodeQEMErrorRewards += QEMreward;
@@ -245,21 +268,28 @@ pair<float, bool> MeshEnv::step(int action) {
             maxQEMRewardGiven = fmax(QEMreward, maxQEMRewardGiven);
             maxApproximationError = fmax(approxError, maxApproximationError);
 
-            reward = -QEMreward; // since RL tries to maximize the sum of rewards
+            reward += -QEMreward -approxError; // -idealApproxError; // -approxError; // since RL tries to maximize the sum of rewards
+            reward += 1;
 
             // store QEM costs collected
             if (!isTraining)
             {
-                scale = 10.f;
-                agentQEMCosts.push_back(res.second*scale);
-                greedyQEMCosts.push_back(halfEdgeMeshGreedy->greedyQEMStep()*scale);
-                randomQEMCosts.push_back(halfEdgeMeshRandom->randomQEMStep()*scale);
+                // moved to within halfedge mesh class
+//                scale = 1; 10.f;
+//                agentQEMCosts.push_back(res.second*scale);
+//                greedyQEMCosts.push_back(halfEdgeMeshGreedy->greedyQEMStep()*scale);
+//                randomQEMCosts.push_back(halfEdgeMeshRandom->randomQEMStep()*scale);
 
-//                halfEdgeMeshGreedy->greedyQEMStep();
-//                halfEdgeMeshRandom->randomQEMStep();
-//                agentQEMCosts.push_back(approxError *scale);
-//                greedyQEMCosts.push_back(approximationError(originalMesh, halfEdgeMeshGreedy) *scale);
-//                randomQEMCosts.push_back(approximationError(originalMesh, halfEdgeMeshRandom) *scale);
+                int prev = (halfEdgeMesh->nonManifoldCollapsesPerStep.size() == 0) ? 0 : halfEdgeMesh->nonManifoldCollapsesPerStep[halfEdgeMesh->nonManifoldCollapsesPerStep.size()-1];
+                halfEdgeMesh->nonManifoldCollapsesPerStep.push_back(prev+numNonManifoldCollapses);
+
+                halfEdgeMeshGreedy->greedyQEMStep();
+                halfEdgeMeshRandom->randomQEMStep();
+
+                scale = 1000;
+                halfEdgeMesh->energyApproxErrorsStep.push_back(approxError *scale);
+                halfEdgeMeshGreedy->energyApproxErrorsStep.push_back(approximationError(originalMesh, halfEdgeMeshGreedy) *scale);
+                halfEdgeMeshRandom->energyApproxErrorsStep.push_back(approximationError(originalMesh, halfEdgeMeshRandom) *scale);
 
 //                cout << "Difference from original mesh vs RL mesh: " << approximationError(originalMesh, halfEdgeMesh) << endl;
 //                cout << "Difference from original mesh vs Greedy mesh: " << approximationError(originalMesh, halfEdgeMeshGreedy) << endl;
@@ -273,6 +303,7 @@ pair<float, bool> MeshEnv::step(int action) {
     // - the number of faces in the current state is less than equal to what the user wants in the simplified mesh result
     // - (only during training) truncate if the total number of actions/steps (i.e. edge collapses taken is greater than the maxSteps
     int totalCollapses = numCollapses + numNonManifoldCollapses + numDeletedEdgeCollapses + numDNEEdgeCollapses;
+    maxSteps = 767; // (int) ((maxFaceCount - finalFaceCount) / 2) + 50;
     if (isTraining && totalCollapses > maxSteps) {
         isTerminal = true;
     }
@@ -281,6 +312,9 @@ pair<float, bool> MeshEnv::step(int action) {
         isTerminal = true;
         reachedRequiredFaces = true;
     }
+//    if (isTerminal) {
+//        // reward += (-numNonManifoldCollapses -numDeletedEdgeCollapses + numCollapses);
+//    }
 
     episodeRewards += reward;
 
@@ -348,12 +382,13 @@ void MeshEnv::loadFromFile() {
 //    delete halfEdgeMesh;
 //    halfEdgeMesh = new HalfEdgeMesh();
 
-    // only build the original mesh once
-    if (originalMesh->vertexMap.size() == 0) {
-        cout << "Building original mesh" << endl;
-        originalMesh->buildHalfEdgeMesh(_vertices, _faces);
-    }
+//    // only build the original mesh once
+//    if (originalMesh->vertexMap.size() == 0) {
+//        cout << "Building original mesh" << endl;
 
+//    }
+
+    originalMesh->buildHalfEdgeMesh(_vertices, _faces); // must rebuild original mesh too lol coz the input mesh itself could change on reset() D::
     halfEdgeMesh->buildHalfEdgeMesh(_vertices, _faces);
     halfEdgeMeshGreedy->buildHalfEdgeMesh(_vertices, _faces);
     if (!isTraining) halfEdgeMeshRandom->buildHalfEdgeMesh(_vertices, _faces);
