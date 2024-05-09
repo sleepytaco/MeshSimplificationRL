@@ -45,12 +45,12 @@ int main(int argc, char *argv[]) {
 //    env.initMeshEnv();
     // env.setFinalFaceCount(75);
 
-    int version = 1;
+    int version = 2;
     MeshEnv env;
     env.setVersion(version);
 
     io_service service;
-    tcp::acceptor acceptor(service, tcp::endpoint(tcp::v4(), 12345));
+    tcp::acceptor acceptor(service, tcp::endpoint(tcp::v4(), 12346));
 
     bool running = true;
     while (running) {

@@ -42,20 +42,20 @@ float MeshEnv::approximationError(HalfEdgeMesh* originalMesh, HalfEdgeMesh* simp
     HalfEdgeMesh* Mn = originalMesh;
     HalfEdgeMesh* Mi = simplifiedMesh;
 
-    vector<Vector3f> Xn = samplePoints(150, Mn);
-    vector<Vector3f> Xi = samplePoints(150, Mi);
+//    vector<Vector3f> Xn = samplePoints(150, Mn);
+//    vector<Vector3f> Xi = samplePoints(150, Mi);
 
     float E = 0;
 
-//    for (auto& vm : Mn->vertexMap) {
-//        Vector3f v = vm.second->vertex3f;
-    for (Vector3f& v : Xn) {
+    for (auto& vm : Mn->vertexMap) {
+        Vector3f v = vm.second->vertex3f;
+    // for (Vector3f& v : Xn) {
         E += powf(minDistance(v, Mi), 2.f);
     }
 
-//    for (auto& vm : Mi->vertexMap) {
-//        Vector3f v = vm.second->vertex3f;
-    for (Vector3f& v : Xi) {
+    for (auto& vm : Mi->vertexMap) {
+        Vector3f v = vm.second->vertex3f;
+    // for (Vector3f& v : Xi) {
         E += powf(minDistance(v, Mn), 2.f);
     }
 

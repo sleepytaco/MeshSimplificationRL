@@ -390,7 +390,7 @@ void MeshEnv::loadFromFile() {
 
     originalMesh->buildHalfEdgeMesh(_vertices, _faces); // must rebuild original mesh too lol coz the input mesh itself could change on reset() D::
     halfEdgeMesh->buildHalfEdgeMesh(_vertices, _faces);
-    halfEdgeMeshGreedy->buildHalfEdgeMesh(_vertices, _faces);
+    if (!isTraining) halfEdgeMeshGreedy->buildHalfEdgeMesh(_vertices, _faces);
     if (!isTraining) halfEdgeMeshRandom->buildHalfEdgeMesh(_vertices, _faces);
 }
 

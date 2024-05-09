@@ -32,6 +32,7 @@ public:
     vector<int> nonManifoldCollapsesPerStep;
     vector<float> QEMCostsPerStep;
     vector<float> energyApproxErrorsStep;
+    int nonManifoldCollapses = 0;
 
 
     void resetStats() {

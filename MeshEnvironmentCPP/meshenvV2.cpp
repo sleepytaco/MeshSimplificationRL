@@ -105,7 +105,7 @@ pair<float, bool> MeshEnv::stepV2(Vector3f xyz) {
         // non-manifoldness related collapses could also have smallest QEM rewards for a state! it the agent picks it we can simply ignore, much as the original QEM paper
         // reward += -20;
         float nonManifoldReward = res.second;
-        float penalty = 0; -nonManifoldReward;
+        float penalty = -50; // give double the -nonManfioldReward penalty
         float rewardGiven = -nonManifoldReward + penalty;
 
         // maxNonManifoldQEMReward = max(maxNonManifoldQEMReward, nonManifoldReward);
@@ -127,28 +127,26 @@ pair<float, bool> MeshEnv::stepV2(Vector3f xyz) {
 
         // halfEdgeMeshGreedy->greedyQEMStep();
         // float idealApproxError = approximationError(halfEdgeMeshGreedy, halfEdgeMesh); // compare RL agent's mesh and Greedy QEM agent's mesh energy
-        float approxError = approximationError(originalMesh, halfEdgeMesh) * 100;
+        float approxError = approximationError(originalMesh, halfEdgeMesh) * 1000;
         episodeApproxErrorRewards += approxError;
         maxApproximationError = fmax(approxError, maxApproximationError);
 
         reward += -QEMreward -approxError; // -idealApproxError; // -approxError; // since RL tries to maximize the sum of rewards
-
+        reward += 100; // give bonus for picking a valid edge to collapse
 
         // store QEM costs collected
-        if (!isTraining && false)
+        if (!isTraining)
         {
-            float scale = 1000.f;
-            float approxError = approximationError(originalMesh, halfEdgeMesh) * scale;
-
-//            agentQEMCosts.push_back(res.second*scale);
-//            greedyQEMCosts.push_back(halfEdgeMeshGreedy->greedyQEMStep()*scale);
-//            randomQEMCosts.push_back(halfEdgeMeshRandom->randomQEMStep()*scale);
+//            int prev = (halfEdgeMesh->nonManifoldCollapsesPerStep.size() == 0) ? 0 : halfEdgeMesh->nonManifoldCollapsesPerStep[halfEdgeMesh->nonManifoldCollapsesPerStep.size()-1];
+//            halfEdgeMesh->nonManifoldCollapsesPerStep.push_back(prev+numNonManifoldCollapses);
 
             halfEdgeMeshGreedy->greedyQEMStep();
             halfEdgeMeshRandom->randomQEMStep();
-//            agentQEMCosts.push_back(approxError *scale);
-//            greedyQEMCosts.push_back(approximationError(originalMesh, halfEdgeMeshGreedy) *scale);
-//            randomQEMCosts.push_back(approximationError(originalMesh, halfEdgeMeshRandom) *scale);
+
+            float scale = 1;
+            halfEdgeMesh->energyApproxErrorsStep.push_back(approxError *scale);
+            halfEdgeMeshGreedy->energyApproxErrorsStep.push_back(approximationError(originalMesh, halfEdgeMeshGreedy) *scale);
+            halfEdgeMeshRandom->energyApproxErrorsStep.push_back(approximationError(originalMesh, halfEdgeMeshRandom) *scale);
         }
     }
 
@@ -158,7 +156,7 @@ pair<float, bool> MeshEnv::stepV2(Vector3f xyz) {
     // - the number of faces in the current state is less than equal to what the user wants in the simplified mesh result
     // - (only during training) truncate if the total number of actions/steps (i.e. edge collapses taken is greater than the maxSteps
     int totalCollapses = numCollapses + numNonManifoldCollapses + numDeletedEdgeCollapses + numDNEEdgeCollapses;
-    maxSteps = 767; // (int) ((maxFaceCount - finalFaceCount) / 2) + 50;
+    maxSteps = 511; // (int) ((maxFaceCount - finalFaceCount) / 2) + 50;
     // if (totalCollapses > 150) reward += -10;
     if (totalCollapses > maxSteps) {
         // reward += -200;
@@ -170,7 +168,8 @@ pair<float, bool> MeshEnv::stepV2(Vector3f xyz) {
         reachedRequiredFaces = true;
     }
     if (isTerminal) {
-        reward += (-numNonManifoldCollapses + numCollapses);
+        // reward += (-numNonManifoldCollapses + numCollapses);
+        reward -= fmin((halfEdgeMesh->faceMap.size() - finalFaceCount), 0); // penalize if it does not reach the required num of faces
     }
 
     episodeRewards += reward;

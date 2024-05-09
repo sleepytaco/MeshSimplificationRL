@@ -29,7 +29,7 @@ kwargs2layer = {
     "policy": "MlpPolicy",
     # "policy_kwargs": dict(activation_fn=nn.ReLU, net_arch=dict(pi=[128, 128],qf=[128, 128])), using default one of [400, 300] units works wondders
     "verbose": 2,
-    "gamma": 0.999,  # default 0.99
+    "gamma": 1, # 0.999,  # default 0.99
     "batch_size": 128,  # --- 256 had worked well (but was slow 26 it/s) --- will try 128
     "tensorboard_log": "./sac_logs_2layer/",
     "buffer_size": 96_000,

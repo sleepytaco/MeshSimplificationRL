@@ -121,6 +121,7 @@ pair<int, float> HalfEdgeMesh::removeEdge(int edgeId) {
     Vector3f edgeMP = (v0->vertex3f + v1->vertex3f) / 2.f;
     Vertex* collapsedVertex = edgeCollapse(edge, edgeMP); // returns vertex to which the edge was collapsed to
     if (collapsedVertex == nullptr) { // if null, then the edge was not collapsed by edgeCollapse func due to violating manifoldness
+        nonManifoldCollapses ++;
         return {3, edgeQEMCost};
     }
 
@@ -136,7 +137,9 @@ pair<int, float> HalfEdgeMesh::removeEdge(int edgeId) {
         hptr = hptr->twin->next;
     } while (hptr != collapsedVertex->he);
 
-    QEMCostsPerStep.push_back(edgeQEMCost*10);
+    QEMCostsPerStep.push_back(edgeQEMCost);
+    nonManifoldCollapsesPerStep.push_back(nonManifoldCollapses);
+    nonManifoldCollapses = 0;
 
     return {0, edgeQEMCost};
 
@@ -144,7 +147,7 @@ pair<int, float> HalfEdgeMesh::removeEdge(int edgeId) {
 
 float HalfEdgeMesh::greedyQEMStep() {
 
-    int nonManifoldCollapses = 0;
+    nonManifoldCollapses = 0;
 
     // run until we reach target num of faces
     float QEMCost = 666;
@@ -184,8 +187,8 @@ float HalfEdgeMesh::greedyQEMStep() {
         numCollapses ++;
     }
 
-    QEMCostsPerStep.push_back(QEMCost*10);
-    int prev = (nonManifoldCollapsesPerStep.size() == 0) ? 0 : nonManifoldCollapsesPerStep[nonManifoldCollapsesPerStep.size()-1];
+    QEMCostsPerStep.push_back(QEMCost);
+    int prev = 0; (nonManifoldCollapsesPerStep.size() == 0) ? 0 : nonManifoldCollapsesPerStep[nonManifoldCollapsesPerStep.size()-1];
     nonManifoldCollapsesPerStep.push_back(prev + nonManifoldCollapses);
 
     return QEMCost;
@@ -193,8 +196,6 @@ float HalfEdgeMesh::greedyQEMStep() {
 
 #include <random>
 float HalfEdgeMesh::randomQEMStep() {
-
-    int nonManifoldCollapses = 0;
 
     // pick random edge ID
 //     int rand_num=rand()%99+1; // produces numbers from 1-99
@@ -221,6 +222,7 @@ float HalfEdgeMesh::randomQEMStep() {
     // run until we reach target num of faces
     float QEMCost = 666;
     int numCollapses = 0;
+    nonManifoldCollapses = 0;
     int i=0;
     while (numCollapses<1) {
 
@@ -258,8 +260,8 @@ float HalfEdgeMesh::randomQEMStep() {
         numCollapses ++;
     }
 
-    QEMCostsPerStep.push_back(QEMCost*10);
-    int prev = (nonManifoldCollapsesPerStep.size() == 0) ? 0 : nonManifoldCollapsesPerStep[nonManifoldCollapsesPerStep.size()-1];
+    QEMCostsPerStep.push_back(QEMCost);
+    int prev = 0; (nonManifoldCollapsesPerStep.size() == 0) ? 0 : nonManifoldCollapsesPerStep[nonManifoldCollapsesPerStep.size()-1];
     nonManifoldCollapsesPerStep.push_back(prev + nonManifoldCollapses);
     return QEMCost;
 }
