@@ -2,7 +2,9 @@
 
 **TL;DR** I am attempting to model mesh simplification as a reinforcement learning problem to train an agent to look at a dense mesh and learn to remove edges in a way that results in a simplified mesh that still holds a geometric resemblance with the original dense mesh. I want to investigate how well an RL-based mesh simplification agent can learn a policy to do the task while making sure to not collapse edges that would lead to the resulting mesh being non-manifold. In the process, I also want to explore how well the agent can generalize to arbitrary fixed-size meshes.
 
-So far, I implemented the quadric error mesh simplification algorithm in C++ and built an RL environment interface around it. I built a simple C++ API server that will allow my Python program to interact with the mesh simplification environment through the endpoints. I made a custom Gym environment in Python that calls the API endpoints to reset the environment, take actions in the environment, return the current state, etc. This project is still in progress!
+I implemented the quadric error mesh simplification algorithm in C++ and built an RL environment interface around it. I built a simple C++ API server that will allow my Python program to interact with the mesh simplification environment through the endpoints. I made a custom Gym environment in Python that calls the API endpoints to reset the environment, take actions in the environment, return the current state, etc. I experimented with a naive MDP formulation to see how well the agent does. This project is still in progress!
+
+Link to project presentation slides: https://docs.google.com/presentation/d/1hqYyW1kb2VyasSK4ohizyUo9dW6VpY9fVQkz_RlPaWo/edit?usp=sharing
 
 
 ## Background
